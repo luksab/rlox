@@ -130,6 +130,28 @@ impl InterpreterInstance {
                     line += 1;
                     i += 1;
                 }
+                // handle strings
+                '"' => {
+                    let mut j = i + 1;
+                    while j < chars.len() && chars[j] != '"' {
+                        if chars[j] == '\n' {
+                            line += 1;
+                        }
+                        j += 1;
+                    }
+                    if j == chars.len() {
+                        self.error(line + 1, "Unterminated string.");
+                        break;
+                    }
+                    tokens.push(Token {
+                        inner: TokenType::String(chars[i + 1..j].iter().collect()),
+                        lexeme: chars[i..j + 1].iter().collect(),
+                        line: line + 1,
+                        start_column: i + 1,
+                        length: j - i + 1,
+                    });
+                    i = j + 1;
+                }
                 char => {
                     self.error(line + 1, &format!("Unexpected character: {}", char));
                     i += 1;
