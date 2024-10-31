@@ -19,27 +19,34 @@ fn main() {
                 String::new()
             });
 
-            // if !file_contents.is_empty() {
-            //     panic!("Scanner not implemented");
-            // } else {
-            //     println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
-            // }
-            for char in file_contents.chars() {
-                match char {
-                    '(' => println!("LEFT_PAREN ( null"),
-                    ')' => println!("RIGHT_PAREN ) null"),
-                    '{' => println!("LEFT_BRACE {{ null"),
-                    '}' => println!("RIGHT_BRACE }} null"),
-                    '*' => println!("STAR * null"),
-                    '.' => println!("DOT . null"),
-                    ',' => println!("COMMA , null"),
-                    '+' => println!("PLUS + null"),
-                    '-' => println!("MINUS - null"),
-                    ';' => println!("SEMICOLON ; null"),
-                    _ => panic!("Scanner not fully implemented"),
+            let mut lexing_error_occurred = false;
+            for (line_num, line) in file_contents.lines().enumerate() {
+                for char in line.chars() {
+                    match char {
+                        '(' => println!("LEFT_PAREN ( null"),
+                        ')' => println!("RIGHT_PAREN ) null"),
+                        '{' => println!("LEFT_BRACE {{ null"),
+                        '}' => println!("RIGHT_BRACE }} null"),
+                        '*' => println!("STAR * null"),
+                        '.' => println!("DOT . null"),
+                        ',' => println!("COMMA , null"),
+                        '+' => println!("PLUS + null"),
+                        '-' => println!("MINUS - null"),
+                        ';' => println!("SEMICOLON ; null"),
+                        char => {
+                            eprintln!(
+                                "[line {}] Error: Unexpected character: {char}",
+                                line_num + 1,
+                            );
+                            lexing_error_occurred = true;
+                        }
+                    }
                 }
             }
             println!("EOF  null");
+            if lexing_error_occurred {
+                std::process::exit(65);
+            }
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
