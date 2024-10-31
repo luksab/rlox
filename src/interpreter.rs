@@ -32,6 +32,7 @@ impl InterpreterInstance {
             while i < chars.len() {
                 let char = chars[i];
                 match char {
+                    // handle the easy cases first
                     '(' | ')' | '{' | '}' | '*' | '.' | ',' | '+' | '-' | ';' => {
                         tokens.push(Token {
                             inner: match char {
@@ -54,6 +55,7 @@ impl InterpreterInstance {
                         });
                         i += 1;
                     }
+                    // '=', '!', '<', and '>' can be single or double characters (e.g. '==' or '=')
                     '=' | '<' | '>' | '!' => {
                         let next_char = chars.get(i + 1);
                         if let Some(&next_char) = next_char {
@@ -96,6 +98,28 @@ impl InterpreterInstance {
                             });
                             i += 1;
                         }
+                    }
+                    // slash needs to be handled separately because it can be a comment
+                    '/' => {
+                        let next_char = chars.get(i + 1);
+                        if let Some(&next_char) = next_char {
+                            if next_char == '/' {
+                                // just skip the rest of the line
+                                break;
+                            }
+                        }
+                        tokens.push(Token {
+                            inner: TokenType::Slash,
+                            lexeme: char.to_string(),
+                            line: line_num + 1,
+                            start_column: i + 1,
+                            length: 1,
+                        });
+                        i += 1;
+                    }
+                    // ignore whitespace
+                    ' ' | '\t' | '\r' => {
+                        i += 1;
                     }
                     char => {
                         self.error(line_num + 1, &format!("Unexpected character: {}", char));
