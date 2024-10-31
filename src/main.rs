@@ -35,6 +35,7 @@ fn main() {
                     ',' => println!("COMMA , null"),
                     '+' => println!("PLUS + null"),
                     '-' => println!("MINUS - null"),
+                    ';' => println!("SEMICOLON ; null"),
                     _ => panic!("Scanner not fully implemented"),
                 }
             }
