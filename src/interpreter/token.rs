@@ -109,7 +109,6 @@ impl Display for TokenType {
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let literal = match &self.inner {
-            TokenType::Identifier(s) => s.clone(),
             TokenType::String(s) => s.clone(),
             // print the number as a string, keeping at least one decimal place
             TokenType::Number(n) => {
