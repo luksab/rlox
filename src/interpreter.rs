@@ -152,6 +152,32 @@ impl InterpreterInstance {
                     });
                     i = j + 1;
                 }
+                // handle numbers
+                '0'..='9' => {
+                    let mut j = i + 1;
+                    while j < chars.len() && chars[j].is_ascii_digit() {
+                        j += 1;
+                    }
+                    if j < chars.len()
+                        && chars[j] == '.'
+                        && chars.get(j + 1).map_or(false, |c| c.is_ascii_digit())
+                    {
+                        j += 1;
+                        while j < chars.len() && chars[j].is_ascii_digit() {
+                            j += 1;
+                        }
+                    }
+                    let number = chars[i..j].iter().collect::<String>();
+                    let number = number.parse::<f64>().unwrap();
+                    tokens.push(Token {
+                        inner: TokenType::Number(number),
+                        lexeme: number.to_string(),
+                        line: line + 1,
+                        start_column: i + 1,
+                        length: j - i,
+                    });
+                    i = j;
+                }
                 char => {
                     self.error(line + 1, &format!("Unexpected character: {}", char));
                     i += 1;
