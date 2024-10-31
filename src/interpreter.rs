@@ -80,7 +80,20 @@ impl InterpreterInstance {
                             });
                             i += len;
                         } else {
-                            self.error(line_num + 1, "Unexpected character");
+                            let token_type = match char {
+                                '=' => TokenType::Equal,
+                                '!' => TokenType::Bang,
+                                '<' => TokenType::Less,
+                                '>' => TokenType::Greater,
+                                _ => unreachable!(),
+                            };
+                            tokens.push(Token {
+                                inner: token_type,
+                                lexeme: char.to_string(),
+                                line: line_num + 1,
+                                start_column: i + 1,
+                                length: 1,
+                            });
                             i += 1;
                         }
                     }
