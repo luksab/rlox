@@ -111,6 +111,29 @@ impl InterpreterInstance {
                             }
                             continue;
                         }
+                        if next_char == '*' {
+                            let mut nestings = 1;
+                            i += 2;
+                            while i < chars.len() && nestings > 0 {
+                                let char = chars[i];
+                                match (char, chars.get(i + 1)) {
+                                    ('*', Some('/')) => {
+                                        nestings -= 1;
+                                    }
+                                    ('/', Some('*')) => {
+                                        nestings += 1;
+                                    }
+                                    ('\n', _) => {
+                                        line += 1;
+                                    }
+                                    _ => (),
+                                }
+                                i += 1;
+                            }
+                            // The closing "/"
+                            i += 1;
+                            continue;
+                        }
                     }
                     tokens.push(Token {
                         inner: TokenType::Slash,
