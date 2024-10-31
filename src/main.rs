@@ -19,11 +19,19 @@ fn main() {
                 String::new()
             });
 
-            if !file_contents.is_empty() {
-                panic!("Scanner not implemented");
-            } else {
-                println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
+            // if !file_contents.is_empty() {
+            //     panic!("Scanner not implemented");
+            // } else {
+            //     println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
+            // }
+            for char in file_contents.chars() {
+                match char {
+                    '(' => println!("LEFT_PAREN ( null"),
+                    ')' => println!("RIGHT_PAREN ) null"),
+                    _ => panic!("Scanner not fully implemented"),
+                }
             }
+            println!("EOF  null");
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
