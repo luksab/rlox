@@ -106,11 +106,18 @@ impl Display for TokenType {
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let literal = match self.inner {
-            TokenType::Identifier(ref s) => s,
-            TokenType::String(ref s) => s,
-            TokenType::Number(n) => &n.to_string(),
-            _ => "null",
+        let literal = match &self.inner {
+            TokenType::Identifier(s) => s.clone(),
+            TokenType::String(s) => s.clone(),
+            // print the number as a string, keeping at least one decimal place
+            TokenType::Number(n) => {
+                if n.fract() == 0.0 {
+                    format!("{:.1}", n)
+                } else {
+                    n.to_string()
+                }
+            }
+            _ => "null".to_string(),
         };
         write!(f, "{} {} {literal}", self.inner, self.lexeme)
     }
