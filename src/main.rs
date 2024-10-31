@@ -1,6 +1,10 @@
+mod interpreter;
+
 use std::env;
 use std::fs;
 use std::io::{self, Write};
+
+use interpreter::InterpreterInstance;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -19,32 +23,12 @@ fn main() {
                 String::new()
             });
 
-            let mut lexing_error_occurred = false;
-            for (line_num, line) in file_contents.lines().enumerate() {
-                for char in line.chars() {
-                    match char {
-                        '(' => println!("LEFT_PAREN ( null"),
-                        ')' => println!("RIGHT_PAREN ) null"),
-                        '{' => println!("LEFT_BRACE {{ null"),
-                        '}' => println!("RIGHT_BRACE }} null"),
-                        '*' => println!("STAR * null"),
-                        '.' => println!("DOT . null"),
-                        ',' => println!("COMMA , null"),
-                        '+' => println!("PLUS + null"),
-                        '-' => println!("MINUS - null"),
-                        ';' => println!("SEMICOLON ; null"),
-                        char => {
-                            eprintln!(
-                                "[line {}] Error: Unexpected character: {char}",
-                                line_num + 1,
-                            );
-                            lexing_error_occurred = true;
-                        }
-                    }
-                }
+            let mut interpreter = InterpreterInstance::new();
+            interpreter.tokenize(&file_contents);
+            for token in interpreter.tokens {
+                println!("{}", token);
             }
-            println!("EOF  null");
-            if lexing_error_occurred {
+            if interpreter.had_error {
                 std::process::exit(65);
             }
         }
