@@ -179,8 +179,44 @@ impl InterpreterInstance {
                     i = j;
                 }
                 char => {
-                    self.error(line + 1, &format!("Unexpected character: {}", char));
-                    i += 1;
+                    // handle identifiers
+                    if char.is_alphabetic() || char == '_' {
+                        let mut j = i + 1;
+                        while j < chars.len() && (chars[j].is_alphanumeric() || chars[j] == '_') {
+                            j += 1;
+                        }
+                        let lexeme = chars[i..j].iter().collect::<String>();
+                        let token_type = match lexeme.as_str() {
+                            "and" => TokenType::And,
+                            "class" => TokenType::Class,
+                            "else" => TokenType::Else,
+                            "false" => TokenType::False,
+                            "for" => TokenType::For,
+                            "fun" => TokenType::Fun,
+                            "if" => TokenType::If,
+                            "nil" => TokenType::Nil,
+                            "or" => TokenType::Or,
+                            "print" => TokenType::Print,
+                            "return" => TokenType::Return,
+                            "super" => TokenType::Super,
+                            "this" => TokenType::This,
+                            "true" => TokenType::True,
+                            "var" => TokenType::Var,
+                            "while" => TokenType::While,
+                            _ => TokenType::Identifier(lexeme.clone()),
+                        };
+                        tokens.push(Token {
+                            inner: token_type,
+                            lexeme,
+                            line: line + 1,
+                            start_column: i + 1,
+                            length: j - i,
+                        });
+                        i = j;
+                    } else {
+                        self.error(line + 1, &format!("Unexpected character: {}", char));
+                        i += 1;
+                    }
                 }
             }
         }
