@@ -167,11 +167,11 @@ impl InterpreterInstance {
                             j += 1;
                         }
                     }
-                    let number = chars[i..j].iter().collect::<String>();
-                    let number = number.parse::<f64>().unwrap();
+                    let lexeme = chars[i..j].iter().collect::<String>();
+                    let parsed_number = lexeme.parse::<f64>().unwrap();
                     tokens.push(Token {
-                        inner: TokenType::Number(number),
-                        lexeme: number.to_string(),
+                        inner: TokenType::Number(parsed_number),
+                        lexeme: lexeme.to_string(),
                         line: line + 1,
                         start_column: i + 1,
                         length: j - i,

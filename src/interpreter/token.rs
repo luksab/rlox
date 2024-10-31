@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+#[allow(dead_code)]
 pub(crate) struct Token {
     pub(crate) inner: TokenType,
     pub(crate) lexeme: String,
@@ -8,6 +9,7 @@ pub(crate) struct Token {
     pub(crate) length: usize,
 }
 
+#[allow(dead_code)]
 pub enum TokenType {
     // single-character tokens
     LeftParen,
