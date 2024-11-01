@@ -1,6 +1,8 @@
 mod lexer;
 mod parser;
 
+use std::fmt::Display;
+
 pub(crate) use lexer::token;
 use parser::ast::Expr;
 
@@ -8,6 +10,15 @@ use parser::ast::Expr;
 pub(crate) enum InterpreterError {
     LexError,
     ParseError(parser::ParserError),
+}
+
+impl Display for InterpreterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InterpreterError::LexError => write!(f, "Lex error"),
+            InterpreterError::ParseError(err) => write!(f, "Parse error: {}", err.message),
+        }
+    }
 }
 
 pub fn lex(input: &str) -> Result<Vec<token::Token>, Vec<token::Token>> {

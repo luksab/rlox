@@ -48,7 +48,7 @@ fn main() {
                     println!("{}", expr);
                 }
                 Err(err) => {
-                    eprintln!("{:?}", err);
+                    eprintln!("{}", err);
                     std::process::exit(65);
                 }
             }

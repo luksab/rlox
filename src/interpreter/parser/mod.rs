@@ -12,7 +12,6 @@ pub struct ParserError {
 type Result<T> = std::result::Result<T, ParserError>;
 
 pub struct ParserInstance {
-    pub had_error: bool,
     pub current: usize,
     pub tokens: Vec<Token>,
 }
@@ -51,19 +50,21 @@ impl ParserInstance {
 
     fn report(&mut self, line: usize, where_: &str, message: &str) {
         eprintln!("[line {}] Error{}: {}", line, where_, message);
-        self.had_error = true;
     }
 
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self {
-            had_error: false,
-            current: 0,
-            tokens,
-        }
+        Self { current: 0, tokens }
     }
 
     pub fn parse(&mut self) -> Result<Expr> {
-        self.expression()
+        match self.expression() {
+            Ok(expr) => Ok(expr),
+            Err(err) => {
+                self.error(&err.token, &err.message);
+                self.synchronize();
+                return Err(err);
+            }
+        }
     }
 
     fn consume(&mut self, tipe: TokenType, message: &str) -> Result<&Token> {
@@ -218,7 +219,7 @@ impl ParserInstance {
 
         if self.mtch(vec![TokenType::LeftParen]) {
             let expr = self.expression()?;
-            self.mtch(vec![TokenType::RightParen]);
+            self.consume(TokenType::RightParen, "Expect ')' after expression.")?;
             return Ok(Expr {
                 intern: Box::new(ExprType::Grouping(expr)),
             });
