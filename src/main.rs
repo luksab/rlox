@@ -4,8 +4,6 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 
-use interpreter::InterpreterInstance;
-
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
@@ -23,13 +21,36 @@ fn main() {
                 String::new()
             });
 
-            let mut interpreter = InterpreterInstance::new();
-            interpreter.tokenize(&file_contents);
-            for token in interpreter.tokens {
-                println!("{}", token);
+            let tokens = interpreter::lex(&file_contents);
+            match tokens {
+                Ok(tokens) => {
+                    for token in tokens {
+                        println!("{}", token);
+                    }
+                }
+                Err(tokens) => {
+                    for token in tokens {
+                        println!("{}", token);
+                    }
+                    std::process::exit(65);
+                }
             }
-            if interpreter.had_error {
-                std::process::exit(65);
+        }
+        "parse" => {
+            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
+                writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
+                String::new()
+            });
+
+            let expr = interpreter::parse(&file_contents);
+            match expr {
+                Ok(expr) => {
+                    println!("{}", expr);
+                }
+                Err(err) => {
+                    eprintln!("{:?}", err);
+                    std::process::exit(65);
+                }
             }
         }
         _ => {
