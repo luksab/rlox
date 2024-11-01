@@ -35,7 +35,7 @@ impl Display for ExprType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ExprType::Literal(literal) => write!(f, "{literal}"),
-            ExprType::Grouping(expression) => write!(f, "( group {expression} )"),
+            ExprType::Grouping(expression) => write!(f, "(group {expression})"),
             ExprType::Unary(unary) => write!(f, "{unary}"),
             ExprType::Binary(binary) => write!(f, "{binary}"),
         }
