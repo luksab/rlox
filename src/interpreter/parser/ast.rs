@@ -42,12 +42,22 @@ impl Display for ExprType {
     }
 }
 
+#[derive(Clone, PartialEq)]
 pub(crate) enum Literal {
     Number(f64),
     String(String),
     True,
     False,
     Nil,
+}
+
+impl From<bool> for Literal {
+    fn from(b: bool) -> Self {
+        match b {
+            true => Literal::True,
+            false => Literal::False,
+        }
+    }
 }
 
 impl Display for Literal {

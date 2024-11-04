@@ -1,8 +1,10 @@
+mod eval;
 mod lexer;
 mod parser;
 
 use std::fmt::Display;
 
+use eval::Eval;
 pub(crate) use lexer::token;
 use parser::ast::Expr;
 
@@ -10,6 +12,7 @@ use parser::ast::Expr;
 pub(crate) enum InterpreterError {
     LexError,
     ParseError(parser::ParserError),
+    ExecError(eval::ExecError),
 }
 
 impl Display for InterpreterError {
@@ -17,6 +20,7 @@ impl Display for InterpreterError {
         match self {
             InterpreterError::LexError => write!(f, "Lex error"),
             InterpreterError::ParseError(err) => write!(f, "Parse error: {}", err),
+            InterpreterError::ExecError(err) => write!(f, "Exec error: {}", err),
         }
     }
 }
@@ -46,5 +50,22 @@ pub fn parse(input: &str) -> Result<Expr, InterpreterError> {
             eprintln!("Failed to lex input");
             Err(InterpreterError::LexError)
         }
+    }
+}
+
+pub fn eval(input: &str) -> Result<parser::ast::Literal, InterpreterError> {
+    let expr = parse(input);
+    match expr {
+        Ok(expr) => {
+            let result = expr.eval();
+            match result {
+                Ok(result) => Ok(result),
+                Err(err) => {
+                    eprintln!("{}", err);
+                    Err(InterpreterError::ExecError(err))
+                }
+            }
+        }
+        Err(err) => Err(err),
     }
 }

@@ -53,6 +53,23 @@ fn main() {
                 }
             }
         }
+        "evaluate" => {
+            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
+                writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
+                String::new()
+            });
+
+            let result = interpreter::eval(&file_contents);
+            match result {
+                Ok(result) => {
+                    println!("{}", result);
+                }
+                Err(err) => {
+                    eprintln!("{}", err);
+                    std::process::exit(65);
+                }
+            }
+        }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
             return;
