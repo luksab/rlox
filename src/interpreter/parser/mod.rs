@@ -138,7 +138,7 @@ impl ParserInstance {
                     println!("Discarding Right: {}", right);
                 }
 
-                self.print_remaining();
+                // self.print_remaining();
 
                 if err.token.inner.is_binary() {
                     return Err(ParserError {
