@@ -62,6 +62,24 @@ pub enum TokenType {
     EOF,
 }
 
+impl TokenType {
+    pub(crate) fn is_binary(&self) -> bool {
+        match self {
+            TokenType::EqualEqual
+            | TokenType::BangEqual
+            | TokenType::Greater
+            | TokenType::GreaterEqual
+            | TokenType::Less
+            | TokenType::LessEqual
+            | TokenType::Plus
+            | TokenType::Minus
+            | TokenType::Star
+            | TokenType::Slash => true,
+            _ => false,
+        }
+    }
+}
+
 impl Display for TokenType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

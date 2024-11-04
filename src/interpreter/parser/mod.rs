@@ -1,3 +1,5 @@
+use std::{backtrace::Backtrace, fmt::Display};
+
 use super::token::{Token, TokenType};
 
 pub(crate) mod ast;
@@ -7,6 +9,14 @@ use ast::*;
 pub struct ParserError {
     pub(crate) message: String,
     pub(crate) token: Token,
+    pub(crate) backtrace: Backtrace,
+}
+
+impl Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // writeln!(f, "{}", self.backtrace)?;
+        write!(f, "{} at line {}", self.message, self.token.line)
+    }
 }
 
 type Result<T> = std::result::Result<T, ParserError>;
@@ -17,6 +27,13 @@ pub struct ParserInstance {
 }
 
 impl ParserInstance {
+    pub fn print_remaining(&self) {
+        println!(
+            "Tokens left: {:?}",
+            self.tokens[self.current..].iter().collect::<Vec<_>>()
+        );
+    }
+
     fn error(&mut self, token: &Token, message: &str) {
         match token.inner {
             TokenType::EOF => self.report(token.line, " at end", message),
@@ -77,6 +94,7 @@ impl ParserInstance {
         Err(ParserError {
             message: "Parse error".to_string(),
             token,
+            backtrace: Backtrace::force_capture(),
         })
     }
 
@@ -105,7 +123,34 @@ impl ParserInstance {
 
     // comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
     fn comparison(&mut self) -> Result<Expr> {
-        let mut expr = self.term()?;
+        let mut expr = match self.term() {
+            Ok(expr) => expr,
+            Err(err) => {
+                self.advance();
+                // consume the token on the right side of the binary operator
+                while self.mtch(vec![
+                    TokenType::Greater,
+                    TokenType::GreaterEqual,
+                    TokenType::Less,
+                    TokenType::LessEqual,
+                ]) {
+                    let right = self.term()?;
+                    println!("Discarding Right: {}", right);
+                }
+
+                self.print_remaining();
+
+                if err.token.inner.is_binary() {
+                    return Err(ParserError {
+                        message: "binary operator appearing at the beginning of an expression."
+                            .to_string(),
+                        token: err.token,
+                        backtrace: Backtrace::force_capture(),
+                    });
+                }
+                return Err(err);
+            }
+        };
 
         while self.mtch(vec![
             TokenType::Greater,
@@ -228,16 +273,11 @@ impl ParserInstance {
         Err(ParserError {
             message: "Expect expression.".to_string(),
             token: self.peek().to_owned(),
+            backtrace: Backtrace::force_capture(),
         })
     }
 
     fn mtch(&mut self, types: Vec<TokenType>) -> bool {
-        // for (TokenType type : types) {
-        //   if (check(type)) {
-        //     advance();
-        //     return true;
-        //   }
-        // }
         for tipe in types {
             if self.check(tipe) {
                 self.advance();
