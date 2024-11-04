@@ -64,11 +64,12 @@ impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Literal::Number(n) => {
-                if n.fract() == 0.0 {
-                    write!(f, "{:.1}", n)
-                } else {
-                    write!(f, "{}", n)
-                }
+                // if n.fract() == 0.0 {
+                //     write!(f, "{:.1}", n)
+                // } else {
+                //     write!(f, "{}", n)
+                // }
+                write!(f, "{}", n)
             }
             Literal::String(s) => write!(f, "{}", s),
             Literal::True => write!(f, "true"),
