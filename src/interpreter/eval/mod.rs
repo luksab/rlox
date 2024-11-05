@@ -47,7 +47,7 @@ impl Eval for Unary {
                     backtrace: Backtrace::capture(),
                 }),
             },
-            UnaryType::Not => Ok(Literal::from(bool::from(self.expr.eval()?))),
+            UnaryType::Not => Ok(Literal::from(!bool::from(self.expr.eval()?))),
         }
     }
 }
