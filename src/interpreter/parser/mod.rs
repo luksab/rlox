@@ -70,6 +70,7 @@ impl ParserInstance {
 
     fn report(&mut self, line: usize, where_: &str, message: &str) {
         eprintln!("[line {}] Error{}: {}", line, where_, message);
+        self.had_error = true;
     }
 
     pub fn new(tokens: Vec<Token>) -> Self {
