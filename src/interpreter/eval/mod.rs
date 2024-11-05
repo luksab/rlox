@@ -47,15 +47,7 @@ impl Eval for Unary {
                     backtrace: Backtrace::capture(),
                 }),
             },
-            UnaryType::Not => match self.expr.eval()? {
-                Literal::True => Ok(Literal::False),
-                Literal::False => Ok(Literal::True),
-                Literal::Nil => Ok(Literal::True),
-                _ => Err(ExecError {
-                    message: "Unary bang expects a boolean".to_string(),
-                    backtrace: Backtrace::capture(),
-                }),
-            },
+            UnaryType::Not => Ok(Literal::from(bool::from(self.expr.eval()?))),
         }
     }
 }

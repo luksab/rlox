@@ -60,6 +60,18 @@ impl From<bool> for Literal {
     }
 }
 
+impl From<Literal> for bool {
+    fn from(l: Literal) -> Self {
+        match l {
+            Literal::True => true,
+            Literal::False => false,
+            Literal::Nil => false,
+            Literal::Number(num) => num != 0.0,
+            Literal::String(_) => true,
+        }
+    }
+}
+
 impl std::fmt::Debug for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
