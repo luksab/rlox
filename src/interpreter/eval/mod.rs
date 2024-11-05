@@ -20,22 +20,61 @@ impl Display for ExecError {
 type Result<T> = std::result::Result<T, ExecError>;
 
 pub struct EvalCtx {
-    variables: HashMap<String, Literal>,
+    /// Stack of variable scopes
+    ///
+    /// The last element is the innermost scope
+    variables: Vec<HashMap<String, Literal>>,
 }
 
 impl EvalCtx {
     pub fn new() -> Self {
         EvalCtx {
-            variables: HashMap::new(),
+            variables: vec![HashMap::new()],
         }
     }
 
     pub fn insert(&mut self, name: String, value: Literal) {
-        self.variables.insert(name, value);
+        self.variables
+            .last_mut()
+            .expect("At least one scope should exist")
+            .insert(name, value);
+    }
+
+    pub fn assign(&mut self, name: &str, value: Literal) -> Result<()> {
+        for scope in self.variables.iter_mut().rev() {
+            if scope.contains_key(name) {
+                scope.insert(name.to_string(), value);
+                return Ok(());
+            }
+        }
+        Err(ExecError {
+            message: format!("Undefined variable '{}'", name),
+            range: SouceCodeRange {
+                line: 0,
+                start_column: 0,
+                length: 0,
+            },
+            backtrace: Backtrace::capture(),
+        })
     }
 
     pub fn get(&self, name: &str) -> Option<&Literal> {
-        self.variables.get(name)
+        for scope in self.variables.iter().rev() {
+            if let Some(value) = scope.get(name) {
+                return Some(value);
+            }
+        }
+        None
+    }
+
+    pub fn push_scope(&mut self) {
+        self.variables.push(HashMap::new());
+    }
+
+    pub fn pop_scope(&mut self) {
+        self.variables
+            .pop()
+            .expect("At least one scope should exist");
     }
 }
 
@@ -60,6 +99,19 @@ impl Stmt {
                 ctx.insert(name.clone(), value);
                 Ok(())
             }
+            StmtType::Block(stmts) => {
+                ctx.push_scope();
+                for stmt in stmts {
+                    if let Err(e) = stmt.eval(ctx) {
+                        // Make sure that the scope is popped before returning the error
+                        ctx.pop_scope();
+                        return Err(e);
+                    }
+                    //TODO: if we'd want the block-return, we could add that here.
+                }
+                ctx.pop_scope();
+                Ok(())
+            }
         }
     }
 }
@@ -78,7 +130,7 @@ impl Eval for Expr {
             }),
             ExprType::Assign(name, expr) => {
                 let value = expr.eval(ctx)?;
-                ctx.insert(name.clone(), value.clone());
+                ctx.assign(name, value.clone())?;
                 Ok(value)
             }
         }

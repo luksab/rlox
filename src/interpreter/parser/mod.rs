@@ -176,8 +176,25 @@ impl ParserInstance {
         if self.mtch(vec![TokenType::Print]) {
             return self.print_statement();
         }
+        if self.mtch(vec![TokenType::LeftBrace]) {
+            return self.block_statement();
+        }
 
         return self.expression_statement();
+    }
+
+    fn block_statement(&mut self) -> Result<Stmt> {
+        let mut statements = Vec::new();
+
+        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
+            statements.push(self.declaration()?);
+        }
+
+        self.consume(TokenType::RightBrace, "Expect '}' after block.")?;
+        return Ok(Stmt {
+            range: self.previous().range.clone(),
+            intern: StmtType::Block(statements),
+        });
     }
 
     fn print_statement(&mut self) -> Result<Stmt> {

@@ -29,6 +29,7 @@ pub(crate) enum StmtType {
     Expr(Expr),
     Print(Expr),
     Var(String, Expr),
+    Block(Vec<Stmt>),
 }
 
 impl Display for StmtType {
@@ -38,6 +39,15 @@ impl Display for StmtType {
             StmtType::Print(expr) => write!(f, "(print {})", expr),
             StmtType::Var(name, initializer) => {
                 write!(f, "(var {} = {})", name, initializer)
+            }
+            StmtType::Block(stmts) => {
+                let mut result = String::new();
+                result.push_str("{\n");
+                for stmt in stmts {
+                    result.push_str(&format!("{}\n", stmt));
+                }
+                result.push_str("}");
+                write!(f, "{}", result)
             }
         }
     }
