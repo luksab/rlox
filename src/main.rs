@@ -66,7 +66,7 @@ fn main() {
                 }
                 Err(err) => {
                     eprintln!("{}", err);
-                    std::process::exit(65);
+                    std::process::exit(70);
                 }
             }
         }
