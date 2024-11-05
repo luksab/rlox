@@ -24,6 +24,7 @@ type Result<T> = std::result::Result<T, ParserError>;
 
 pub struct ParserInstance {
     pub current: usize,
+    pub had_error: bool,
     pub tokens: Vec<Token>,
 }
 
@@ -72,7 +73,11 @@ impl ParserInstance {
     }
 
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { current: 0, tokens }
+        Self {
+            current: 0,
+            tokens,
+            had_error: false,
+        }
     }
 
     pub fn parse_expr(&mut self) -> Result<Expr> {
@@ -86,28 +91,24 @@ impl ParserInstance {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Stmt>> {
-        // match self.expression() {
-        //     Ok(expr) => Ok(expr),
-        //     Err(err) => {
-        //         self.error(&err.token, &err.message);
-        //         self.synchronize();
-        //         return Err(err);
-        //     }
-        // }
+    pub fn parse(&mut self) -> std::result::Result<Vec<Stmt>, ()> {
         let mut statements = Vec::new();
         while !self.is_at_end() {
-            match self.statement() {
-                Ok(stmt) => statements.push(stmt),
+            let declaration = self.declaration();
+            match declaration {
+                Ok(declaration) => statements.push(declaration),
                 Err(err) => {
-                    // self.error(&err.token, &err.message);
-                    // self.synchronize();
-                    return Err(err);
+                    eprintln!("{}", err);
+                    self.synchronize();
                 }
             }
         }
 
-        return Ok(statements);
+        if self.had_error {
+            return Err(());
+        } else {
+            return Ok(statements);
+        }
     }
 
     fn consume(&mut self, tipe: TokenType, message: &str) -> Result<&Token> {
@@ -122,6 +123,52 @@ impl ParserInstance {
             token,
             backtrace: Backtrace::force_capture(),
         })
+    }
+
+    fn declaration(&mut self) -> Result<Stmt> {
+        if self.mtch(vec![TokenType::Var]) {
+            return self.var_declaration();
+        }
+
+        return self.statement();
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt> {
+        let name = match self.peek().inner {
+            TokenType::Identifier(_) => self.advance(),
+            _ => {
+                return Err(ParserError {
+                    message: "Expect variable name.".to_string(),
+                    token: self.peek().to_owned(),
+                    backtrace: Backtrace::force_capture(),
+                })
+            }
+        };
+        let range = name.range.clone();
+        let name = if let TokenType::Identifier(name) = &name.inner {
+            name.clone()
+        } else {
+            unreachable!()
+        };
+
+        let initializer = if self.mtch(vec![TokenType::Equal]) {
+            self.expression()?
+        } else {
+            Expr {
+                range: range.clone(),
+                intern: Box::new(ExprType::Literal(Literal::Nil)),
+            }
+        };
+
+        self.consume(
+            TokenType::Semicolon,
+            "Expect ';' after variable declaration.",
+        )?;
+
+        return Ok(Stmt {
+            range,
+            intern: StmtType::Var(name, initializer),
+        });
     }
 
     fn statement(&mut self) -> Result<Stmt> {
@@ -319,6 +366,13 @@ impl ParserInstance {
                 return Ok(Expr {
                     range: self.previous().range.clone(),
                     intern: Box::new(ExprType::Literal(Literal::String(s))),
+                });
+            }
+            TokenType::Identifier(s) => {
+                self.advance();
+                return Ok(Expr {
+                    range: self.previous().range.clone(),
+                    intern: Box::new(ExprType::Variable(s)),
                 });
             }
             _ => (),

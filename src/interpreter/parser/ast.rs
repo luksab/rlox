@@ -28,6 +28,7 @@ impl Display for Stmt {
 pub(crate) enum StmtType {
     Expr(Expr),
     Print(Expr),
+    Var(String, Expr),
 }
 
 impl Display for StmtType {
@@ -35,6 +36,9 @@ impl Display for StmtType {
         match self {
             StmtType::Expr(expr) => write!(f, "{}", expr),
             StmtType::Print(expr) => write!(f, "(print {})", expr),
+            StmtType::Var(name, initializer) => {
+                write!(f, "(var {} = {})", name, initializer)
+            }
         }
     }
 }
@@ -55,6 +59,7 @@ pub(crate) enum ExprType {
     Grouping(Expr),
     Unary(Unary),
     Binary(Binary),
+    Variable(String),
 }
 
 impl Display for ExprType {
@@ -64,6 +69,7 @@ impl Display for ExprType {
             ExprType::Grouping(expression) => write!(f, "(group {expression})"),
             ExprType::Unary(unary) => write!(f, "{unary}"),
             ExprType::Binary(binary) => write!(f, "{binary}"),
+            ExprType::Variable(name) => write!(f, "{name}"),
         }
     }
 }

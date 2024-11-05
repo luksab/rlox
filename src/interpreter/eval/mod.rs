@@ -1,4 +1,4 @@
-use std::{backtrace::Backtrace, fmt::Display};
+use std::{backtrace::Backtrace, collections::HashMap, fmt::Display};
 
 use super::{parser::ast::*, Expr, SouceCodeRange};
 
@@ -19,7 +19,25 @@ impl Display for ExecError {
 
 type Result<T> = std::result::Result<T, ExecError>;
 
-pub struct EvalCtx {}
+pub struct EvalCtx {
+    variables: HashMap<String, Literal>,
+}
+
+impl EvalCtx {
+    pub fn new() -> Self {
+        EvalCtx {
+            variables: HashMap::new(),
+        }
+    }
+
+    pub fn insert(&mut self, name: String, value: Literal) {
+        self.variables.insert(name, value);
+    }
+
+    pub fn get(&self, name: &str) -> Option<&Literal> {
+        self.variables.get(name)
+    }
+}
 
 pub trait Eval {
     fn eval(&self, ctx: &mut EvalCtx) -> Result<Literal>;
@@ -37,6 +55,11 @@ impl Stmt {
                 println!("{}", value);
                 Ok(())
             }
+            StmtType::Var(name, initalizer) => {
+                let value = initalizer.eval(ctx)?;
+                ctx.insert(name.clone(), value);
+                Ok(())
+            }
         }
     }
 }
@@ -48,6 +71,11 @@ impl Eval for Expr {
             ExprType::Grouping(expr) => expr.eval(ctx),
             ExprType::Unary(unary) => unary.eval(ctx),
             ExprType::Binary(binary) => binary.eval(ctx),
+            ExprType::Variable(name) => ctx.get(name).cloned().ok_or(ExecError {
+                message: format!("Undefined variable '{}'", name),
+                range: self.range.clone(),
+                backtrace: Backtrace::capture(),
+            }),
         }
     }
 }

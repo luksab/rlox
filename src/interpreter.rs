@@ -31,7 +31,7 @@ impl SouceCodeRange {
 pub(crate) enum InterpreterError {
     LexError,
     ParseError(parser::ParserError),
-    ExecError(eval::ExecError),
+    ExecError(()),
 }
 
 impl Display for InterpreterError {
@@ -39,7 +39,7 @@ impl Display for InterpreterError {
         match self {
             InterpreterError::LexError => write!(f, "Lex error"),
             InterpreterError::ParseError(err) => write!(f, "Parse error: {}", err),
-            InterpreterError::ExecError(err) => write!(f, "Exec error: {}", err),
+            InterpreterError::ExecError(_) => write!(f, "Exec error"),
         }
     }
 }
@@ -62,7 +62,8 @@ pub fn parse(input: &str) -> Result<Vec<Stmt>, InterpreterError> {
             let stmts = parser.parse();
             match stmts {
                 Ok(stmts) => Ok(stmts),
-                Err(err) => Err(InterpreterError::ParseError(err)),
+                //TODO: FIX ME!!!
+                Err(err) => Err(InterpreterError::ExecError(())),
             }
         }
         Err(_) => {
@@ -93,13 +94,13 @@ pub fn eval(input: &str) -> Result<parser::ast::Literal, InterpreterError> {
     let expr = parse_expr(input);
     match expr {
         Ok(expr) => {
-            let mut ctx = eval::EvalCtx {};
+            let mut ctx = eval::EvalCtx::new();
             let result = eval::Eval::eval(&expr, &mut ctx);
             match result {
                 Ok(result) => Ok(result),
                 Err(err) => {
                     eprintln!("{}", err);
-                    Err(InterpreterError::ExecError(err))
+                    Err(InterpreterError::ExecError(()))
                 }
             }
         }
@@ -111,12 +112,12 @@ pub fn run(input: &str) -> Result<(), InterpreterError> {
     let stmts = parse(input);
     match stmts {
         Ok(stmts) => {
-            let mut ctx = eval::EvalCtx {};
+            let mut ctx = eval::EvalCtx::new();
             for stmt in &stmts {
                 let result = stmt.eval(&mut ctx);
                 if let Err(err) = result {
                     eprintln!("{}", err);
-                    return Err(InterpreterError::ExecError(err));
+                    return Err(InterpreterError::ExecError(()));
                 }
             }
             Ok(())
