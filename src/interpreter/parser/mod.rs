@@ -9,6 +9,7 @@ use ast::*;
 pub struct ParserError {
     pub(crate) message: String,
     pub(crate) token: Token,
+    #[allow(dead_code)]
     pub(crate) backtrace: Backtrace,
 }
 
@@ -27,6 +28,7 @@ pub struct ParserInstance {
 }
 
 impl ParserInstance {
+    #[allow(dead_code)]
     pub fn print_remaining(&self) {
         println!(
             "Tokens left: {:?}",
@@ -73,15 +75,27 @@ impl ParserInstance {
         Self { current: 0, tokens }
     }
 
-    pub fn parse(&mut self) -> Result<Expr> {
-        match self.expression() {
-            Ok(expr) => Ok(expr),
-            Err(err) => {
-                self.error(&err.token, &err.message);
-                self.synchronize();
-                return Err(err);
+    pub fn parse(&mut self) -> Result<Vec<Stmt>> {
+        // match self.expression() {
+        //     Ok(expr) => Ok(expr),
+        //     Err(err) => {
+        //         self.error(&err.token, &err.message);
+        //         self.synchronize();
+        //         return Err(err);
+        //     }
+        // }
+        let mut statements = Vec::new();
+        while !self.is_at_end() {
+            match self.statement() {
+                Ok(stmt) => statements.push(stmt),
+                Err(err) => {
+                    self.error(&err.token, &err.message);
+                    self.synchronize();
+                }
             }
         }
+
+        return Ok(statements);
     }
 
     fn consume(&mut self, tipe: TokenType, message: &str) -> Result<&Token> {
@@ -96,6 +110,32 @@ impl ParserInstance {
             token,
             backtrace: Backtrace::force_capture(),
         })
+    }
+
+    fn statement(&mut self) -> Result<Stmt> {
+        if self.mtch(vec![TokenType::Print]) {
+            return self.print_statement();
+        }
+
+        return self.expression_statement();
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt> {
+        let value = self.expression()?;
+        self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
+        return Ok(Stmt {
+            range: value.range.clone(),
+            intern: StmtType::Print(value),
+        });
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt> {
+        let expr = self.expression()?;
+        self.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
+        return Ok(Stmt {
+            range: expr.range.clone(),
+            intern: StmtType::Expr(expr),
+        });
     }
 
     fn expression(&mut self) -> Result<Expr> {

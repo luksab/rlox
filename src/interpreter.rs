@@ -4,9 +4,8 @@ mod parser;
 
 use std::fmt::Display;
 
-use eval::Eval;
 pub(crate) use lexer::token;
-use parser::ast::Expr;
+use parser::ast::{Expr, Stmt};
 
 #[derive(Debug, Clone)]
 pub(crate) struct SouceCodeRange {
@@ -55,14 +54,14 @@ pub fn lex(input: &str) -> Result<Vec<token::Token>, Vec<token::Token>> {
     }
 }
 
-pub fn parse(input: &str) -> Result<Expr, InterpreterError> {
+pub fn parse(input: &str) -> Result<Vec<Stmt>, InterpreterError> {
     let tokens = lex(input);
     match tokens {
         Ok(tokens) => {
             let mut parser = parser::ParserInstance::new(tokens);
-            let expr = parser.parse();
-            match expr {
-                Ok(expr) => Ok(expr),
+            let stmts = parser.parse();
+            match stmts {
+                Ok(stmts) => Ok(stmts),
                 Err(err) => Err(InterpreterError::ParseError(err)),
             }
         }
@@ -73,18 +72,19 @@ pub fn parse(input: &str) -> Result<Expr, InterpreterError> {
     }
 }
 
-pub fn eval(input: &str) -> Result<parser::ast::Literal, InterpreterError> {
-    let expr = parse(input);
-    match expr {
-        Ok(expr) => {
-            let result = expr.eval();
-            match result {
-                Ok(result) => Ok(result),
-                Err(err) => {
+pub fn eval(input: &str) -> Result<(), InterpreterError> {
+    let stmts = parse(input);
+    match stmts {
+        Ok(stmts) => {
+            let mut ctx = eval::EvalCtx {};
+            for stmt in &stmts {
+                let result = stmt.eval(&mut ctx);
+                if let Err(err) = result {
                     eprintln!("{}", err);
-                    Err(InterpreterError::ExecError(err))
+                    return Err(InterpreterError::ExecError(err));
                 }
             }
+            Ok(())
         }
         Err(err) => Err(err),
     }

@@ -44,8 +44,10 @@ fn main() {
 
             let expr = interpreter::parse(&file_contents);
             match expr {
-                Ok(expr) => {
-                    println!("{}", expr);
+                Ok(exprs) => {
+                    for expr in exprs {
+                        println!("{}", expr);
+                    }
                 }
                 Err(err) => {
                     eprintln!("{}", err);
@@ -60,14 +62,9 @@ fn main() {
             });
 
             let result = interpreter::eval(&file_contents);
-            match result {
-                Ok(result) => {
-                    println!("{}", result);
-                }
-                Err(err) => {
-                    eprintln!("{}", err);
-                    std::process::exit(70);
-                }
+            if let Err(err) = result {
+                eprintln!("{}", err);
+                std::process::exit(70);
             }
         }
         _ => {

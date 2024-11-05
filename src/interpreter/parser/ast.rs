@@ -14,6 +14,31 @@ use std::fmt::Display;
 
 use crate::interpreter::{token::TokenType, SouceCodeRange};
 
+pub(crate) struct Stmt {
+    pub intern: StmtType,
+    pub range: SouceCodeRange,
+}
+
+impl Display for Stmt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.intern)
+    }
+}
+
+pub(crate) enum StmtType {
+    Expr(Expr),
+    Print(Expr),
+}
+
+impl Display for StmtType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StmtType::Expr(expr) => write!(f, "{}", expr),
+            StmtType::Print(expr) => write!(f, "(print {})", expr),
+        }
+    }
+}
+
 pub(crate) struct Expr {
     pub intern: Box<ExprType>,
     pub range: SouceCodeRange,
