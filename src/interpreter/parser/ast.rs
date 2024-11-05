@@ -34,7 +34,7 @@ pub(crate) enum ExprType {
 impl Display for ExprType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ExprType::Literal(literal) => write!(f, "{literal}"),
+            ExprType::Literal(literal) => write!(f, "{literal:?}"),
             ExprType::Grouping(expression) => write!(f, "(group {expression})"),
             ExprType::Unary(unary) => write!(f, "{unary}"),
             ExprType::Binary(binary) => write!(f, "{binary}"),
@@ -56,6 +56,24 @@ impl From<bool> for Literal {
         match b {
             true => Literal::True,
             false => Literal::False,
+        }
+    }
+}
+
+impl std::fmt::Debug for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Literal::Number(n) => {
+                if n.fract() == 0.0 {
+                    write!(f, "Number({:.1})", n)
+                } else {
+                    write!(f, "Number({})", n)
+                }
+            }
+            Literal::String(s) => write!(f, "{}", s),
+            Literal::True => write!(f, "true"),
+            Literal::False => write!(f, "false"),
+            Literal::Nil => write!(f, "nil"),
         }
     }
 }
