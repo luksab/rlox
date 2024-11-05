@@ -65,9 +65,9 @@ impl std::fmt::Debug for Literal {
         match self {
             Literal::Number(n) => {
                 if n.fract() == 0.0 {
-                    write!(f, "Number({:.1})", n)
+                    write!(f, "{:.1}", n)
                 } else {
-                    write!(f, "Number({})", n)
+                    write!(f, "{}", n)
                 }
             }
             Literal::String(s) => write!(f, "{}", s),
