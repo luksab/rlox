@@ -198,7 +198,31 @@ impl ParserInstance {
     }
 
     fn expression(&mut self) -> Result<Expr> {
-        return self.equality();
+        return self.assignment();
+    }
+
+    fn assignment(&mut self) -> Result<Expr> {
+        let expr = self.equality()?;
+
+        if self.mtch(vec![TokenType::Equal]) {
+            let equals = self.previous().to_owned();
+            let value = self.assignment()?;
+
+            if let ExprType::Variable(ref name) = *expr.intern {
+                return Ok(Expr {
+                    range: equals.range.merge(&value.range),
+                    intern: Box::new(ExprType::Assign(name.clone(), value)),
+                });
+            }
+
+            // return Err(ParserError {
+            //     message: "Invalid assignment target.".to_string(),
+            //     token: equals,
+            //     backtrace: Backtrace::force_capture(),
+            // });
+            self.error(&equals, "Invalid assignment target.");
+        }
+        return Ok(expr);
     }
 
     // equality       → comparison ( ( "!=" | "==" ) comparison )* ;

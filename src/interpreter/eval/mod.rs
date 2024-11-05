@@ -76,6 +76,11 @@ impl Eval for Expr {
                 range: self.range.clone(),
                 backtrace: Backtrace::capture(),
             }),
+            ExprType::Assign(name, expr) => {
+                let value = expr.eval(ctx)?;
+                ctx.insert(name.clone(), value.clone());
+                Ok(value)
+            }
         }
     }
 }

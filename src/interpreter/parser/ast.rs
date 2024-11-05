@@ -60,6 +60,7 @@ pub(crate) enum ExprType {
     Unary(Unary),
     Binary(Binary),
     Variable(String),
+    Assign(String, Expr),
 }
 
 impl Display for ExprType {
@@ -70,6 +71,7 @@ impl Display for ExprType {
             ExprType::Unary(unary) => write!(f, "{unary}"),
             ExprType::Binary(binary) => write!(f, "{binary}"),
             ExprType::Variable(name) => write!(f, "{name}"),
+            ExprType::Assign(name, expr) => write!(f, "(assign {name} {expr})"),
         }
     }
 }
