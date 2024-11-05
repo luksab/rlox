@@ -30,7 +30,7 @@ impl SouceCodeRange {
 #[derive(Debug)]
 pub(crate) enum InterpreterError {
     LexError,
-    ParseError(parser::ParserError),
+    ParseError(()),
     ExecError(()),
 }
 
@@ -38,7 +38,7 @@ impl Display for InterpreterError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InterpreterError::LexError => write!(f, "Lex error"),
-            InterpreterError::ParseError(err) => write!(f, "Parse error: {}", err),
+            InterpreterError::ParseError(err) => write!(f, "Parse error"),
             InterpreterError::ExecError(_) => write!(f, "Exec error"),
         }
     }
@@ -63,7 +63,7 @@ pub fn parse(input: &str) -> Result<Vec<Stmt>, InterpreterError> {
             match stmts {
                 Ok(stmts) => Ok(stmts),
                 //TODO: FIX ME!!!
-                Err(err) => Err(InterpreterError::ExecError(())),
+                Err(err) => Err(InterpreterError::ParseError(())),
             }
         }
         Err(_) => {
@@ -81,7 +81,7 @@ pub fn parse_expr(input: &str) -> Result<Expr, InterpreterError> {
             let expr = parser.parse_expr();
             match expr {
                 Ok(expr) => Ok(expr),
-                Err(err) => Err(InterpreterError::ParseError(err)),
+                Err(err) => Err(InterpreterError::ParseError(())),
             }
         }
         Err(_) => {
@@ -116,7 +116,7 @@ pub fn run(input: &str) -> Result<(), InterpreterError> {
             for stmt in &stmts {
                 let result = stmt.eval(&mut ctx);
                 if let Err(err) = result {
-                    eprintln!("{}", err);
+                    eprintln!("ExecError: {}", err);
                     return Err(InterpreterError::ExecError(()));
                 }
             }

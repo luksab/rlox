@@ -98,7 +98,7 @@ impl ParserInstance {
             match declaration {
                 Ok(declaration) => statements.push(declaration),
                 Err(err) => {
-                    eprintln!("{}", err);
+                    self.error(&err.token, &err.message);
                     self.synchronize();
                 }
             }
