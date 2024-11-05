@@ -241,7 +241,7 @@ impl ParserInstance {
     }
 
     fn assignment(&mut self) -> Result<Expr> {
-        let expr = self.equality()?;
+        let expr = self.or()?;
 
         if self.mtch(vec![TokenType::Equal]) {
             let equals = self.previous().to_owned();
@@ -261,6 +261,44 @@ impl ParserInstance {
             // });
             self.error(&equals, "Invalid assignment target.");
         }
+        return Ok(expr);
+    }
+
+    fn or(&mut self) -> Result<Expr> {
+        let mut expr = self.and()?;
+
+        while self.mtch(vec![TokenType::Or]) {
+            let operator = self.previous().inner.clone();
+            let right = self.and()?;
+            expr = Expr {
+                range: expr.range.merge(&right.range).merge(&self.previous().range),
+                intern: Box::new(ExprType::Logical(Logical {
+                    left: expr,
+                    operator: (&operator).into(),
+                    right: right,
+                })),
+            };
+        }
+
+        return Ok(expr);
+    }
+
+    fn and(&mut self) -> Result<Expr> {
+        let mut expr = self.equality()?;
+
+        while self.mtch(vec![TokenType::And]) {
+            let operator = self.previous().inner.clone();
+            let right = self.equality()?;
+            expr = Expr {
+                range: expr.range.merge(&right.range).merge(&self.previous().range),
+                intern: Box::new(ExprType::Logical(Logical {
+                    left: expr,
+                    operator: (&operator).into(),
+                    right: right,
+                })),
+            };
+        }
+
         return Ok(expr);
     }
 

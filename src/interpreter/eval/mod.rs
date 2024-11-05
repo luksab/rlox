@@ -144,6 +144,18 @@ impl Eval for Expr {
                 ctx.assign(name, value.clone())?;
                 Ok(value)
             }
+            ExprType::Logical(logical) => logical.eval(ctx),
+        }
+    }
+}
+
+impl Eval for Logical {
+    fn eval(&self, ctx: &mut EvalCtx) -> Result<Literal> {
+        let left = self.left.eval(ctx)?;
+        match (&self.operator, bool::from(&left)) {
+            (LogicalOperator::And, false) => Ok(Literal::from(false)),
+            (LogicalOperator::Or, true) => Ok(Literal::from(true)),
+            _ => self.right.eval(ctx),
         }
     }
 }

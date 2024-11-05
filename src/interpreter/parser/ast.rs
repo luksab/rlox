@@ -81,6 +81,7 @@ pub(crate) enum ExprType {
     Grouping(Expr),
     Unary(Unary),
     Binary(Binary),
+    Logical(Logical),
     Variable(String),
     Assign(String, Expr),
 }
@@ -94,6 +95,7 @@ impl Display for ExprType {
             ExprType::Binary(binary) => write!(f, "{binary}"),
             ExprType::Variable(name) => write!(f, "{name}"),
             ExprType::Assign(name, expr) => write!(f, "(assign {name} {expr})"),
+            ExprType::Logical(logical) => write!(f, "{logical}"),
         }
     }
 }
@@ -116,15 +118,21 @@ impl From<bool> for Literal {
     }
 }
 
-impl From<Literal> for bool {
-    fn from(l: Literal) -> Self {
+impl From<&Literal> for bool {
+    fn from(l: &Literal) -> Self {
         match l {
             Literal::True => true,
             Literal::False => false,
             Literal::Nil => false,
-            Literal::Number(num) => num != 0.0,
+            Literal::Number(num) => *num != 0.0,
             Literal::String(_) => true,
         }
+    }
+}
+
+impl From<Literal> for bool {
+    fn from(l: Literal) -> Self {
+        (&l).into()
     }
 }
 
@@ -209,6 +217,42 @@ pub(crate) struct Binary {
 impl Display for Binary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({} {} {})", self.operator, self.left, self.right)
+    }
+}
+
+pub(crate) struct Logical {
+    pub left: Expr,
+    pub operator: LogicalOperator,
+    pub right: Expr,
+}
+
+impl Display for Logical {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({} {} {})", self.operator, self.left, self.right)
+    }
+}
+
+pub(crate) enum LogicalOperator {
+    And,
+    Or,
+}
+
+impl From<&TokenType> for LogicalOperator {
+    fn from(token: &TokenType) -> Self {
+        match token {
+            TokenType::And => LogicalOperator::And,
+            TokenType::Or => LogicalOperator::Or,
+            _ => panic!("Invalid logical operator"),
+        }
+    }
+}
+
+impl Display for LogicalOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LogicalOperator::And => write!(f, "and"),
+            LogicalOperator::Or => write!(f, "or"),
+        }
     }
 }
 
