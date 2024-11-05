@@ -1,18 +1,18 @@
 use std::{backtrace::Backtrace, fmt::Display};
 
-use super::{parser::ast::*, Expr};
+use super::{parser::ast::*, Expr, SouceCodeRange};
 
 #[derive(Debug)]
 pub struct ExecError {
     pub(crate) message: String,
-    // pub(crate) expr: Expr,
+    pub(crate) range: SouceCodeRange,
     pub(crate) backtrace: Backtrace,
 }
 
 impl Display for ExecError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // writeln!(f, "{}", self.backtrace)?;
-        write!(f, "{} at line ??", self.message)
+        write!(f, "{} at line {}", self.message, self.range.line)
     }
 }
 
@@ -45,6 +45,7 @@ impl Eval for Unary {
                 _ => Err(ExecError {
                     message: "Unary minus expects a number".to_string(),
                     backtrace: Backtrace::capture(),
+                    range: self.expr.range.clone(),
                 }),
             },
             UnaryType::Not => Ok(Literal::from(!bool::from(self.expr.eval()?))),
@@ -62,6 +63,7 @@ impl Eval for Binary {
                 }
                 _ => Err(ExecError {
                     message: "Operands must be two numbers or two strings".to_string(),
+                    range: self.left.range.merge(&self.right.range),
                     backtrace: Backtrace::capture(),
                 }),
             },
@@ -77,6 +79,7 @@ impl Eval for Binary {
                     }
                     _ => Err(ExecError {
                         message: "Operands must be numbers".to_string(),
+                        range: self.left.range.merge(&self.right.range),
                         backtrace: Backtrace::capture(),
                     }),
                 }
@@ -94,6 +97,7 @@ impl Eval for Binary {
                     }
                     _ => Err(ExecError {
                         message: "Operands must be numbers".to_string(),
+                        range: self.left.range.merge(&self.right.range),
                         backtrace: Backtrace::capture(),
                     }),
                 }

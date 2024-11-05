@@ -8,6 +8,26 @@ use eval::Eval;
 pub(crate) use lexer::token;
 use parser::ast::Expr;
 
+#[derive(Debug, Clone)]
+pub(crate) struct SouceCodeRange {
+    pub(crate) line: usize,
+    pub(crate) start_column: usize,
+    pub(crate) length: usize,
+}
+
+impl SouceCodeRange {
+    pub(crate) fn merge(&self, other: &Self) -> Self {
+        let line = self.line.min(other.line);
+        let start_column = self.start_column.min(other.start_column);
+        let length = self.length + other.length;
+        Self {
+            line,
+            start_column,
+            length,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) enum InterpreterError {
     LexError,

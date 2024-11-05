@@ -15,7 +15,7 @@ pub struct ParserError {
 impl Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // writeln!(f, "{}", self.backtrace)?;
-        write!(f, "{} at line {}", self.message, self.token.line)
+        write!(f, "{} at line {}", self.message, self.token.range.line)
     }
 }
 
@@ -36,8 +36,8 @@ impl ParserInstance {
 
     fn error(&mut self, token: &Token, message: &str) {
         match token.inner {
-            TokenType::EOF => self.report(token.line, " at end", message),
-            _ => self.report(token.line, "", message),
+            TokenType::EOF => self.report(token.range.line, " at end", message),
+            _ => self.report(token.range.line, "", message),
         }
     }
 
@@ -110,6 +110,7 @@ impl ParserInstance {
             let operator = self.previous().inner.clone();
             let right = self.comparison()?;
             expr = Expr {
+                range: expr.range.merge(&right.range).merge(&self.previous().range),
                 intern: Box::new(ExprType::Binary(Binary {
                     left: expr,
                     operator: (&operator).into(),
@@ -161,6 +162,7 @@ impl ParserInstance {
             let operator = self.previous().inner.clone();
             let right = self.term()?;
             expr = Expr {
+                range: expr.range.merge(&right.range).merge(&self.previous().range),
                 intern: Box::new(ExprType::Binary(Binary {
                     left: expr,
                     operator: (&operator).into(),
@@ -180,6 +182,7 @@ impl ParserInstance {
             let operator = self.previous().inner.clone();
             let right = self.factor()?;
             expr = Expr {
+                range: expr.range.merge(&right.range).merge(&self.previous().range),
                 intern: Box::new(ExprType::Binary(Binary {
                     left: expr,
                     operator: (&operator).into(),
@@ -198,6 +201,7 @@ impl ParserInstance {
             let operator = self.previous().inner.clone();
             let right = self.unary()?;
             expr = Expr {
+                range: expr.range.merge(&right.range).merge(&self.previous().range),
                 intern: Box::new(ExprType::Binary(Binary {
                     left: expr,
                     operator: (&operator).into(),
@@ -217,6 +221,7 @@ impl ParserInstance {
             let operator = self.previous().inner.clone();
             let right = self.unary()?;
             return Ok(Expr {
+                range: right.range.merge(&self.previous().range),
                 intern: Box::new(ExprType::Unary(Unary {
                     intern: (&operator).into(),
                     expr: right,
@@ -232,16 +237,19 @@ impl ParserInstance {
     fn primary(&mut self) -> Result<Expr> {
         if self.mtch(vec![TokenType::False]) {
             return Ok(Expr {
+                range: self.previous().range.clone(),
                 intern: Box::new(ExprType::Literal(Literal::False)),
             });
         }
         if self.mtch(vec![TokenType::True]) {
             return Ok(Expr {
+                range: self.previous().range.clone(),
                 intern: Box::new(ExprType::Literal(Literal::True)),
             });
         }
         if self.mtch(vec![TokenType::Nil]) {
             return Ok(Expr {
+                range: self.previous().range.clone(),
                 intern: Box::new(ExprType::Literal(Literal::Nil)),
             });
         }
@@ -250,12 +258,14 @@ impl ParserInstance {
             TokenType::Number(n) => {
                 self.advance();
                 return Ok(Expr {
+                    range: self.previous().range.clone(),
                     intern: Box::new(ExprType::Literal(Literal::Number(n))),
                 });
             }
             TokenType::String(s) => {
                 self.advance();
                 return Ok(Expr {
+                    range: self.previous().range.clone(),
                     intern: Box::new(ExprType::Literal(Literal::String(s))),
                 });
             }
@@ -266,6 +276,7 @@ impl ParserInstance {
             let expr = self.expression()?;
             self.consume(TokenType::RightParen, "Expect ')' after expression.")?;
             return Ok(Expr {
+                range: self.previous().range.clone(),
                 intern: Box::new(ExprType::Grouping(expr)),
             });
         }

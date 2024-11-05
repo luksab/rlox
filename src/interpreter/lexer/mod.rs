@@ -34,8 +34,8 @@ impl LexerInstance {
             match char {
                 // handle the easy cases first
                 '(' | ')' | '{' | '}' | '*' | '.' | ',' | '+' | '-' | ';' => {
-                    tokens.push(Token {
-                        inner: match char {
+                    tokens.push(Token::new(
+                        match char {
                             '(' => TokenType::LeftParen,
                             ')' => TokenType::RightParen,
                             '{' => TokenType::LeftBrace,
@@ -48,11 +48,11 @@ impl LexerInstance {
                             ';' => TokenType::Semicolon,
                             _ => unreachable!(),
                         },
-                        lexeme: char.to_string(),
-                        line: line + 1,
-                        start_column: i + 1,
-                        length: 1,
-                    });
+                        char.to_string(),
+                        line + 1,
+                        i + 1,
+                        1,
+                    ));
                     i += 1;
                 }
                 // '=', '!', '<', and '>' can be single or double characters (e.g. '==' or '=')
@@ -73,13 +73,13 @@ impl LexerInstance {
                                 (0, TokenType::EOF)
                             }
                         };
-                        tokens.push(Token {
-                            inner: token_type,
-                            lexeme: chars[i..i + len].iter().collect(),
-                            line: line + 1,
-                            start_column: i + 1,
-                            length: len,
-                        });
+                        tokens.push(Token::new(
+                            token_type,
+                            chars[i..i + len].iter().collect(),
+                            line + 1,
+                            i + 1,
+                            len,
+                        ));
                         i += len;
                     } else {
                         let token_type = match char {
@@ -89,13 +89,7 @@ impl LexerInstance {
                             '>' => TokenType::Greater,
                             _ => unreachable!(),
                         };
-                        tokens.push(Token {
-                            inner: token_type,
-                            lexeme: char.to_string(),
-                            line: line + 1,
-                            start_column: i + 1,
-                            length: 1,
-                        });
+                        tokens.push(Token::new(token_type, char.to_string(), line + 1, i + 1, 1));
                         i += 1;
                     }
                 }
@@ -134,13 +128,13 @@ impl LexerInstance {
                             continue;
                         }
                     }
-                    tokens.push(Token {
-                        inner: TokenType::Slash,
-                        lexeme: char.to_string(),
-                        line: line + 1,
-                        start_column: i + 1,
-                        length: 1,
-                    });
+                    tokens.push(Token::new(
+                        TokenType::Slash,
+                        char.to_string(),
+                        line + 1,
+                        i + 1,
+                        1,
+                    ));
                     i += 1;
                 }
                 // ignore whitespace
@@ -165,13 +159,13 @@ impl LexerInstance {
                         self.error(line + 1, "Unterminated string.");
                         break;
                     }
-                    tokens.push(Token {
-                        inner: TokenType::String(chars[i + 1..j].iter().collect()),
-                        lexeme: chars[i..j + 1].iter().collect(),
-                        line: line + 1,
-                        start_column: i + 1,
-                        length: j - i + 1,
-                    });
+                    tokens.push(Token::new(
+                        TokenType::String(chars[i + 1..j].iter().collect()),
+                        chars[i..j + 1].iter().collect(),
+                        line + 1,
+                        i + 1,
+                        j - i + 1,
+                    ));
                     i = j + 1;
                 }
                 // handle numbers
@@ -191,13 +185,13 @@ impl LexerInstance {
                     }
                     let lexeme = chars[i..j].iter().collect::<String>();
                     let parsed_number = lexeme.parse::<f64>().unwrap();
-                    tokens.push(Token {
-                        inner: TokenType::Number(parsed_number),
-                        lexeme: lexeme.to_string(),
-                        line: line + 1,
-                        start_column: i + 1,
-                        length: j - i,
-                    });
+                    tokens.push(Token::new(
+                        TokenType::Number(parsed_number),
+                        lexeme.to_string(),
+                        line + 1,
+                        i + 1,
+                        j - i,
+                    ));
                     i = j;
                 }
                 char => {
@@ -227,13 +221,7 @@ impl LexerInstance {
                             "while" => TokenType::While,
                             _ => TokenType::Identifier(lexeme.clone()),
                         };
-                        tokens.push(Token {
-                            inner: token_type,
-                            lexeme,
-                            line: line + 1,
-                            start_column: i + 1,
-                            length: j - i,
-                        });
+                        tokens.push(Token::new(token_type, lexeme, line + 1, i + 1, j - i));
                         i = j;
                     } else {
                         self.error(line + 1, &format!("Unexpected character: {}", char));
@@ -243,13 +231,7 @@ impl LexerInstance {
             }
         }
 
-        tokens.push(Token {
-            inner: TokenType::EOF,
-            lexeme: String::new(),
-            line: 0,
-            start_column: 0,
-            length: 0,
-        });
+        tokens.push(Token::new(TokenType::EOF, String::new(), 0, 0, 0));
         self.tokens = tokens;
     }
 }

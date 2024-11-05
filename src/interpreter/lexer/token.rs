@@ -1,13 +1,36 @@
 use std::fmt::Display;
 
+use crate::interpreter::SouceCodeRange;
+
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct Token {
     pub(crate) inner: TokenType,
     pub(crate) lexeme: String,
-    pub(crate) line: usize,
-    pub(crate) start_column: usize,
-    pub(crate) length: usize,
+    // pub(crate) line: usize,
+    // pub(crate) start_column: usize,
+    // pub(crate) length: usize,
+    pub(crate) range: SouceCodeRange,
+}
+
+impl Token {
+    pub(crate) fn new(
+        inner: TokenType,
+        lexeme: String,
+        line: usize,
+        start_column: usize,
+        length: usize,
+    ) -> Self {
+        Self {
+            inner,
+            lexeme,
+            range: SouceCodeRange {
+                line,
+                start_column,
+                length,
+            },
+        }
+    }
 }
 
 #[allow(dead_code)]

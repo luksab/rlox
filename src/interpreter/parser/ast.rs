@@ -12,10 +12,11 @@
 
 use std::fmt::Display;
 
-use crate::interpreter::token::TokenType;
+use crate::interpreter::{token::TokenType, SouceCodeRange};
 
 pub(crate) struct Expr {
     pub intern: Box<ExprType>,
+    pub range: SouceCodeRange,
 }
 
 impl Display for Expr {
@@ -203,38 +204,5 @@ impl Display for Operator {
             Operator::Times => write!(f, "*"),
             Operator::Div => write!(f, "/"),
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn print() {
-        // let ast = Expression {
-        //     intern: Box::new(ExpressionType::Literal(Literal::False)),
-        // };
-        // (* (- 123) (group 45.67))
-        let ast = Expr {
-            intern: Box::new(ExprType::Binary(Binary {
-                left: Expr {
-                    intern: Box::new(ExprType::Unary(Unary {
-                        intern: UnaryType::Neg,
-                        expr: Expr {
-                            intern: Box::new(ExprType::Literal(Literal::Number(123.0))),
-                        },
-                    })),
-                },
-                operator: Operator::Times,
-                right: Expr {
-                    intern: Box::new(ExprType::Grouping(Expr {
-                        intern: Box::new(ExprType::Literal(Literal::Number(45.67))),
-                    })),
-                },
-            })),
-        };
-
-        println!("{ast}");
-        panic!()
     }
 }
