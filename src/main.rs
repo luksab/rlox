@@ -64,7 +64,12 @@ fn main() {
             let result = interpreter::eval(&file_contents);
             if let Err(err) = result {
                 eprintln!("{}", err);
-                std::process::exit(70);
+                let code = match err {
+                    interpreter::InterpreterError::LexError => 65,
+                    interpreter::InterpreterError::ParseError(_) => 65,
+                    interpreter::InterpreterError::ExecError(_) => 70,
+                };
+                std::process::exit(code);
             }
         }
         _ => {
