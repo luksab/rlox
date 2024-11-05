@@ -89,8 +89,9 @@ impl ParserInstance {
             match self.statement() {
                 Ok(stmt) => statements.push(stmt),
                 Err(err) => {
-                    self.error(&err.token, &err.message);
-                    self.synchronize();
+                    // self.error(&err.token, &err.message);
+                    // self.synchronize();
+                    return Err(err);
                 }
             }
         }
