@@ -75,6 +75,17 @@ impl ParserInstance {
         Self { current: 0, tokens }
     }
 
+    pub fn parse_expr(&mut self) -> Result<Expr> {
+        match self.expression() {
+            Ok(expr) => Ok(expr),
+            Err(err) => {
+                self.error(&err.token, &err.message);
+                self.synchronize();
+                return Err(err);
+            }
+        }
+    }
+
     pub fn parse(&mut self) -> Result<Vec<Stmt>> {
         // match self.expression() {
         //     Ok(expr) => Ok(expr),
