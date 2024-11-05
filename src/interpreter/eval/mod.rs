@@ -153,8 +153,8 @@ impl Eval for Logical {
     fn eval(&self, ctx: &mut EvalCtx) -> Result<Literal> {
         let left = self.left.eval(ctx)?;
         match (&self.operator, bool::from(&left)) {
-            (LogicalOperator::And, false) => Ok(Literal::from(false)),
-            (LogicalOperator::Or, true) => Ok(Literal::from(true)),
+            (LogicalOperator::And, false) => Ok(left),
+            (LogicalOperator::Or, true) => Ok(left),
             _ => self.right.eval(ctx),
         }
     }
