@@ -61,6 +61,12 @@ impl Eval for Binary {
                 (Literal::String(l), Literal::String(r)) => {
                     Ok(Literal::String(format!("{}{}", l, r)))
                 }
+                (Literal::String(l), other) => {
+                    Ok(Literal::String(format!("{}{}", l, other)))
+                }
+                (other, Literal::String(r)) => {
+                    Ok(Literal::String(format!("{}{}", other, r)))
+                }
                 _ => Err(ExecError {
                     message: "Operands must be two numbers or two strings".to_string(),
                     range: self.left.range.merge(&self.right.range),
