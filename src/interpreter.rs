@@ -72,24 +72,24 @@ pub fn parse(input: &str) -> Result<Vec<Stmt>, InterpreterError> {
     }
 }
 
-pub fn eval(input: &str) -> Result<parser::ast::Literal, InterpreterError> {
-    fn parse_expr(input: &str) -> Result<Expr, InterpreterError> {
-        let tokens = lex(input);
-        match tokens {
-            Ok(tokens) => {
-                let mut parser = parser::ParserInstance::new(tokens);
-                let expr = parser.parse_expr();
-                match expr {
-                    Ok(expr) => Ok(expr),
-                    Err(err) => Err(InterpreterError::ParseError(err)),
-                }
-            }
-            Err(_) => {
-                eprintln!("Failed to lex input");
-                Err(InterpreterError::LexError)
+pub fn parse_expr(input: &str) -> Result<Expr, InterpreterError> {
+    let tokens = lex(input);
+    match tokens {
+        Ok(tokens) => {
+            let mut parser = parser::ParserInstance::new(tokens);
+            let expr = parser.parse_expr();
+            match expr {
+                Ok(expr) => Ok(expr),
+                Err(err) => Err(InterpreterError::ParseError(err)),
             }
         }
+        Err(_) => {
+            eprintln!("Failed to lex input");
+            Err(InterpreterError::LexError)
+        }
     }
+}
+pub fn eval(input: &str) -> Result<parser::ast::Literal, InterpreterError> {
     let expr = parse_expr(input);
     match expr {
         Ok(expr) => {

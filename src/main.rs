@@ -42,12 +42,10 @@ fn main() {
                 String::new()
             });
 
-            let expr = interpreter::parse(&file_contents);
+            let expr = interpreter::parse_expr(&file_contents);
             match expr {
-                Ok(exprs) => {
-                    for expr in exprs {
-                        println!("{}", expr);
-                    }
+                Ok(expr) => {
+                    println!("{}", expr);
                 }
                 Err(err) => {
                     eprintln!("{}", err);
