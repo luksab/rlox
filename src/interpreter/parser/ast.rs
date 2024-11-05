@@ -27,6 +27,7 @@ impl Display for Stmt {
 
 pub(crate) enum StmtType {
     Expr(Expr),
+    IfStmt(Expr, Box<Stmt>, Option<Box<Stmt>>),
     Print(Expr),
     Var(String, Expr),
     Block(Vec<Stmt>),
@@ -39,6 +40,17 @@ impl Display for StmtType {
             StmtType::Print(expr) => write!(f, "(print {})", expr),
             StmtType::Var(name, initializer) => {
                 write!(f, "(var {} = {})", name, initializer)
+            }
+            StmtType::IfStmt(condition, then_branch, else_branch) => {
+                let mut result = String::new();
+                result.push_str("(if ");
+                result.push_str(&format!("{} ", condition));
+                result.push_str(&format!("{} ", then_branch));
+                if let Some(else_branch) = else_branch {
+                    result.push_str(&format!("{} ", else_branch));
+                }
+                result.push_str(")");
+                write!(f, "{}", result)
             }
             StmtType::Block(stmts) => {
                 let mut result = String::new();

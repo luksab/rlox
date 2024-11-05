@@ -173,6 +173,9 @@ impl ParserInstance {
     }
 
     fn statement(&mut self) -> Result<Stmt> {
+        if self.mtch(vec![TokenType::If]) {
+            return self.if_statement();
+        }
         if self.mtch(vec![TokenType::Print]) {
             return self.print_statement();
         }
@@ -181,6 +184,24 @@ impl ParserInstance {
         }
 
         return self.expression_statement();
+    }
+
+    fn if_statement(&mut self) -> Result<Stmt> {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'if'.")?;
+        let condition = self.expression()?;
+        self.consume(TokenType::RightParen, "Expect ')' after if condition.")?;
+
+        let then_branch = Box::new(self.statement()?);
+        let else_branch = if self.mtch(vec![TokenType::Else]) {
+            Some(Box::new(self.statement()?))
+        } else {
+            None
+        };
+
+        return Ok(Stmt {
+            range: condition.range.merge(&then_branch.range).merge(&self.previous().range),
+            intern: StmtType::IfStmt(condition, then_branch, else_branch),
+        });
     }
 
     fn block_statement(&mut self) -> Result<Stmt> {

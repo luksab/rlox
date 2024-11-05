@@ -112,6 +112,17 @@ impl Stmt {
                 ctx.pop_scope();
                 Ok(())
             }
+            StmtType::IfStmt(expr, then, els) => {
+                let condition = expr.eval(ctx)?;
+                if bool::from(condition) {
+                    then.eval(ctx)?;
+                } else {
+                    if let Some(els) = els {
+                        els.eval(ctx)?;
+                    }
+                }
+                Ok(())
+            }
         }
     }
 }
