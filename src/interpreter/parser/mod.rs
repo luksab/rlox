@@ -179,6 +179,9 @@ impl ParserInstance {
         if self.mtch(vec![TokenType::Print]) {
             return self.print_statement();
         }
+        if self.mtch(vec![TokenType::For]) {
+            return self.for_statement();
+        }
         if self.mtch(vec![TokenType::While]) {
             return self.while_statement();
         }
@@ -201,6 +204,63 @@ impl ParserInstance {
         });
     }
 
+    fn for_statement(&mut self) -> Result<Stmt> {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'for'.")?;
+        let initializer = if self.mtch(vec![TokenType::Semicolon]) {
+            None
+        } else if self.mtch(vec![TokenType::Var]) {
+            Some(self.var_declaration()?)
+        } else {
+            Some(self.expression_statement()?)
+        };
+
+        let condition = if !self.check(TokenType::Semicolon) {
+            self.expression()?
+        } else {
+            Expr {
+                range: self.previous().range.clone(),
+                intern: Box::new(ExprType::Literal(Literal::True)),
+            }
+        };
+        self.consume(TokenType::Semicolon, "Expect ';' after loop condition.")?;
+
+        let increment = if !self.check(TokenType::RightParen) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(TokenType::RightParen, "Expect ')' after for clauses.")?;
+
+        let mut body = self.statement()?;
+
+        if let Some(increment) = increment {
+            body = Stmt {
+                range: body.range.merge(&increment.range),
+                intern: StmtType::Block(vec![
+                    body,
+                    Stmt {
+                        range: increment.range.clone(),
+                        intern: StmtType::Expr(increment),
+                    },
+                ]),
+            };
+        }
+
+        body = Stmt {
+            range: condition.range.merge(&body.range),
+            intern: StmtType::While(condition, Box::new(body)),
+        };
+
+        if let Some(initializer) = initializer {
+            body = Stmt {
+                range: initializer.range.merge(&body.range),
+                intern: StmtType::Block(vec![initializer, body]),
+            };
+        }
+
+        return Ok(body);
+    }
+
     fn if_statement(&mut self) -> Result<Stmt> {
         self.consume(TokenType::LeftParen, "Expect '(' after 'if'.")?;
         let condition = self.expression()?;
@@ -214,7 +274,10 @@ impl ParserInstance {
         };
 
         return Ok(Stmt {
-            range: condition.range.merge(&then_branch.range).merge(&self.previous().range),
+            range: condition
+                .range
+                .merge(&then_branch.range)
+                .merge(&self.previous().range),
             intern: StmtType::IfStmt(condition, then_branch, else_branch),
         });
     }
