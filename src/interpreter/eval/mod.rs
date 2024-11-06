@@ -123,6 +123,12 @@ impl Stmt {
                 }
                 Ok(())
             }
+            StmtType::While(expr, stmt) => {
+                while bool::from(expr.eval(ctx)?) {
+                    stmt.eval(ctx)?;
+                }
+                Ok(())
+            }
         }
     }
 }

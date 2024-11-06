@@ -1,2 +1,11 @@
-print "hi" or 2; // "hi".
-print nil or "yes"; // "yes".
+var i = 0;
+var a = 1;
+var b = 2;
+while (i <= 50) {
+  var c = a + b;
+  var str = i + ": " + c;
+  print str;
+  a = b;
+  b = c;
+  i = i + 1;
+}

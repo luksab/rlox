@@ -30,6 +30,7 @@ pub(crate) enum StmtType {
     IfStmt(Expr, Box<Stmt>, Option<Box<Stmt>>),
     Print(Expr),
     Var(String, Expr),
+    While(Expr, Box<Stmt>),
     Block(Vec<Stmt>),
 }
 
@@ -60,6 +61,9 @@ impl Display for StmtType {
                 }
                 result.push_str("}");
                 write!(f, "{}", result)
+            }
+            StmtType::While(expr, stmt) => {
+                write!(f, "(while {} {})", expr, stmt)
             }
         }
     }
