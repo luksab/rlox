@@ -32,6 +32,8 @@ pub(crate) enum StmtType {
     Var(String, Expr),
     While(Expr, Box<Stmt>),
     Block(Vec<Stmt>),
+    Break,
+    Continue,
 }
 
 impl Display for StmtType {
@@ -65,6 +67,8 @@ impl Display for StmtType {
             StmtType::While(expr, stmt) => {
                 write!(f, "(while {} {})", expr, stmt)
             }
+            StmtType::Break => write!(f, "break"),
+            StmtType::Continue => write!(f, "continue"),
         }
     }
 }

@@ -219,6 +219,8 @@ impl LexerInstance {
                             "true" => TokenType::True,
                             "var" => TokenType::Var,
                             "while" => TokenType::While,
+                            "break" => TokenType::Break,
+                            "continue" => TokenType::Continue,
                             _ => TokenType::Identifier(lexeme.clone()),
                         };
                         tokens.push(Token::new(token_type, lexeme, line + 1, i + 1, j - i));

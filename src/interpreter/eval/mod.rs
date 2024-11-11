@@ -24,12 +24,18 @@ pub struct EvalCtx {
     ///
     /// The last element is the innermost scope
     variables: Vec<HashMap<String, Literal>>,
+    /// If the current loop should break
+    pub break_loop: bool,
+    /// If the current loop should continue
+    pub continue_loop: bool,
 }
 
 impl EvalCtx {
     pub fn new() -> Self {
         EvalCtx {
             variables: vec![HashMap::new()],
+            break_loop: false,
+            continue_loop: false,
         }
     }
 
@@ -84,6 +90,10 @@ pub trait Eval {
 
 impl Stmt {
     pub fn eval(&self, ctx: &mut EvalCtx) -> Result<()> {
+        // If we're in a loop and we should break or continue, don't execute the statement
+        if ctx.break_loop || ctx.continue_loop {
+            return Ok(());
+        }
         match &self.intern {
             StmtType::Expr(expr) => {
                 expr.eval(ctx)?;
@@ -126,7 +136,22 @@ impl Stmt {
             StmtType::While(expr, stmt) => {
                 while bool::from(expr.eval(ctx)?) {
                     stmt.eval(ctx)?;
+                    if ctx.break_loop {
+                        ctx.continue_loop = false;
+                        ctx.break_loop = false;
+                        break;
+                    }
+                    ctx.continue_loop = false;
+                    ctx.break_loop = false;
                 }
+                Ok(())
+            }
+            StmtType::Break => {
+                ctx.break_loop = true;
+                Ok(())
+            }
+            StmtType::Continue => {
+                ctx.continue_loop = true;
                 Ok(())
             }
         }

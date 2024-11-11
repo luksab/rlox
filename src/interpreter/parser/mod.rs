@@ -188,8 +188,30 @@ impl ParserInstance {
         if self.mtch(vec![TokenType::LeftBrace]) {
             return self.block_statement();
         }
+        if self.mtch(vec![TokenType::Break]) {
+            return self.break_statement();
+        }
+        if self.mtch(vec![TokenType::Continue]) {
+            return self.continue_statement();
+        }
 
         return self.expression_statement();
+    }
+
+    fn break_statement(&mut self) -> Result<Stmt> {
+        self.consume(TokenType::Semicolon, "Expect ';' after 'break'.")?;
+        return Ok(Stmt {
+            range: self.previous().range.clone(),
+            intern: StmtType::Break,
+        });
+    }
+
+    fn continue_statement(&mut self) -> Result<Stmt> {
+        self.consume(TokenType::Semicolon, "Expect ';' after 'continue'.")?;
+        return Ok(Stmt {
+            range: self.previous().range.clone(),
+            intern: StmtType::Continue,
+        });
     }
 
     fn while_statement(&mut self) -> Result<Stmt> {

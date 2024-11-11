@@ -66,6 +66,8 @@ pub enum TokenType {
 
     // keywords
     And,
+    Break,
+    Continue,
     Class,
     Else,
     False,
@@ -129,6 +131,8 @@ impl Display for TokenType {
             TokenType::String(_) => write!(f, "STRING"),
             TokenType::Number(_) => write!(f, "NUMBER"),
             TokenType::And => write!(f, "AND"),
+            TokenType::Break => write!(f, "BREAK"),
+            TokenType::Continue => write!(f, "CONTINUE"),
             TokenType::Class => write!(f, "CLASS"),
             TokenType::Else => write!(f, "ELSE"),
             TokenType::False => write!(f, "FALSE"),

@@ -6,3 +6,13 @@ for (var b = 1; a < 10000; b = temp + b) {
   temp = a;
   a = b;
 }
+
+var a = 0;
+while (a < 10) {
+  a = a + 1;
+  if (a == 5)
+    continue;
+  print a;
+  if (a == 7)
+    break;
+}
