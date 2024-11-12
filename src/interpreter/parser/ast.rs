@@ -12,7 +12,7 @@
 
 use std::fmt::Display;
 
-use crate::interpreter::{token::TokenType, SouceCodeRange};
+use crate::interpreter::{eval::LoxCallable, token::TokenType, SouceCodeRange};
 
 pub(crate) struct Stmt {
     pub intern: StmtType,
@@ -92,6 +92,7 @@ pub(crate) enum ExprType {
     Logical(Logical),
     Variable(String),
     Assign(String, Expr),
+    Call(Call),
 }
 
 impl Display for ExprType {
@@ -104,7 +105,25 @@ impl Display for ExprType {
             ExprType::Variable(name) => write!(f, "{name}"),
             ExprType::Assign(name, expr) => write!(f, "(assign {name} {expr})"),
             ExprType::Logical(logical) => write!(f, "{logical}"),
+            ExprType::Call(call) => write!(f, "{call}"),
         }
+    }
+}
+
+pub(crate) struct Call {
+    pub callee: Expr,
+    pub arguments: Vec<Expr>,
+}
+
+impl Display for Call {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut result = String::new();
+        result.push_str(&format!("(call {} ", self.callee));
+        for arg in &self.arguments {
+            result.push_str(&format!("{} ", arg));
+        }
+        result.push_str(")");
+        write!(f, "{}", result)
     }
 }
 
@@ -115,6 +134,7 @@ pub(crate) enum Literal {
     True,
     False,
     Nil,
+    Callable(Box<dyn LoxCallable>),
 }
 
 impl From<bool> for Literal {
@@ -134,6 +154,7 @@ impl From<&Literal> for bool {
             Literal::Nil => false,
             Literal::Number(num) => *num != 0.0,
             Literal::String(_) => true,
+            Literal::Callable(_) => true,
         }
     }
 }
@@ -158,6 +179,7 @@ impl std::fmt::Debug for Literal {
             Literal::True => write!(f, "true"),
             Literal::False => write!(f, "false"),
             Literal::Nil => write!(f, "nil"),
+            Literal::Callable(lox_callable) => write!(f, "{:?}", lox_callable),
         }
     }
 }
@@ -177,6 +199,7 @@ impl Display for Literal {
             Literal::True => write!(f, "true"),
             Literal::False => write!(f, "false"),
             Literal::Nil => write!(f, "nil"),
+            Literal::Callable(lox_callable) => write!(f, "{}", lox_callable),
         }
     }
 }

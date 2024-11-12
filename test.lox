@@ -7,6 +7,8 @@ for (var b = 1; a < 10000; b = temp + b) {
   a = b;
 }
 
+syscall("exit", 0);
+
 var a = 0;
 while (a < 10) {
   a = a + 1;

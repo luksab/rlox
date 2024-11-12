@@ -1,3 +1,5 @@
+pub mod lox_callable;
+pub(crate) use lox_callable::LoxCallable;
 use std::{backtrace::Backtrace, collections::HashMap, fmt::Display};
 
 use super::{parser::ast::*, Expr, SouceCodeRange};
@@ -32,8 +34,17 @@ pub struct EvalCtx {
 
 impl EvalCtx {
     pub fn new() -> Self {
+        let mut globals = vec![HashMap::new()];
+        globals.last_mut().unwrap().insert(
+            "clock".to_string(),
+            Literal::Callable(Box::new(crate::interpreter::eval::lox_callable::Clock)),
+        );
+        globals.last_mut().unwrap().insert(
+            "syscall".to_string(),
+            Literal::Callable(Box::new(crate::interpreter::eval::lox_callable::SysCall)),
+        );
         EvalCtx {
-            variables: vec![HashMap::new()],
+            variables: globals,
             break_loop: false,
             continue_loop: false,
         }
@@ -176,6 +187,40 @@ impl Eval for Expr {
                 Ok(value)
             }
             ExprType::Logical(logical) => logical.eval(ctx),
+            ExprType::Call(call) => call.eval(ctx),
+        }
+    }
+}
+
+impl Eval for Call {
+    fn eval(&self, ctx: &mut EvalCtx) -> Result<Literal> {
+        let callee = self.callee.eval(ctx)?;
+
+        let mut arguments = Vec::new();
+        for arg in &self.arguments {
+            arguments.push(arg.eval(ctx)?);
+        }
+
+        match callee {
+            Literal::Callable(callable) => {
+                if !callable.arity_matches(arguments.len()) {
+                    return Err(ExecError {
+                        message: format!(
+                            "Expected {} arguments but got {}",
+                            callable.print_arity(),
+                            arguments.len()
+                        ),
+                        range: self.callee.range.clone(),
+                        backtrace: Backtrace::capture(),
+                    });
+                }
+                callable.call(arguments, ctx)
+            }
+            _ => Err(ExecError {
+                message: "Can only call functions and classes".to_string(),
+                range: self.callee.range.clone(),
+                backtrace: Backtrace::capture(),
+            }),
         }
     }
 }
