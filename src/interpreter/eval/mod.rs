@@ -1,6 +1,8 @@
 pub mod lox_callable;
+pub mod lox_function;
 pub(crate) use lox_callable::LoxCallable;
-use std::{backtrace::Backtrace, collections::HashMap, fmt::Display};
+use lox_function::LoxFunction;
+use std::{backtrace::Backtrace, cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
 use super::{parser::ast::*, Expr, SouceCodeRange};
 
@@ -21,48 +23,70 @@ impl Display for ExecError {
 
 type Result<T> = std::result::Result<T, ExecError>;
 
+#[derive(Debug, PartialEq)]
 pub struct EvalCtx {
     /// Stack of variable scopes
     ///
     /// The last element is the innermost scope
-    variables: Vec<HashMap<String, Literal>>,
+    variables: Rc<RefCell<HashMap<String, Rc<RefCell<Literal>>>>>,
+    enclosing: Option<Rc<RefCell<EvalCtx>>>,
     /// If the current loop should break
-    pub break_loop: bool,
+    break_loop: Rc<RefCell<bool>>,
     /// If the current loop should continue
-    pub continue_loop: bool,
+    continue_loop: Rc<RefCell<bool>>,
+    /// If the current function should return
+    return_value: Rc<RefCell<Option<Literal>>>,
+}
+
+impl Clone for EvalCtx {
+    fn clone(&self) -> Self {
+        EvalCtx {
+            variables: self.variables.clone(),
+            enclosing: self.enclosing.clone(),
+            break_loop: self.break_loop.clone(),
+            continue_loop: self.continue_loop.clone(),
+            return_value: self.return_value.clone(),
+        }
+    }
 }
 
 impl EvalCtx {
-    pub fn new() -> Self {
-        let mut globals = vec![HashMap::new()];
-        globals.last_mut().unwrap().insert(
+    pub fn new_globals() -> Self {
+        let mut globals = HashMap::new();
+        globals.insert(
             "clock".to_string(),
-            Literal::Callable(Box::new(crate::interpreter::eval::lox_callable::Clock)),
+            Rc::new(RefCell::new(Literal::Callable(Box::new(
+                crate::interpreter::eval::lox_callable::Clock,
+            )))),
         );
-        globals.last_mut().unwrap().insert(
+        globals.insert(
             "syscall".to_string(),
-            Literal::Callable(Box::new(crate::interpreter::eval::lox_callable::SysCall)),
+            Rc::new(RefCell::new(Literal::Callable(Box::new(
+                crate::interpreter::eval::lox_callable::SysCall,
+            )))),
         );
         EvalCtx {
-            variables: globals,
-            break_loop: false,
-            continue_loop: false,
+            variables: Rc::new(RefCell::new(globals)),
+            enclosing: None,
+            break_loop: Rc::new(RefCell::new(false)),
+            continue_loop: Rc::new(RefCell::new(false)),
+            return_value: Rc::new(RefCell::new(None)),
         }
     }
 
     pub fn insert(&mut self, name: String, value: Literal) {
-        self.variables
-            .last_mut()
-            .expect("At least one scope should exist")
-            .insert(name, value);
+        self.variables.borrow_mut().insert(name, Rc::new(RefCell::new(value)));
     }
 
     pub fn assign(&mut self, name: &str, value: Literal) -> Result<()> {
-        for scope in self.variables.iter_mut().rev() {
-            if scope.contains_key(name) {
-                scope.insert(name.to_string(), value);
-                return Ok(());
-            }
+        if let Some(scope) = self.variables.borrow_mut().get_mut(name) {
+            *scope.borrow_mut() = value;
+            return Ok(());
+        }
+        if let Some(enclosing) = &self.enclosing {
+            let mut enclosing = enclosing.borrow_mut();
+            enclosing.assign(name, value)?;
+            return Ok(());
         }
         Err(ExecError {
             message: format!("Undefined variable '{}'", name),
@@ -75,23 +99,50 @@ impl EvalCtx {
         })
     }
 
-    pub fn get(&self, name: &str) -> Option<&Literal> {
-        for scope in self.variables.iter().rev() {
-            if let Some(value) = scope.get(name) {
-                return Some(value);
-            }
+    pub fn get(&self, name: &str) -> Option<Rc<RefCell<Literal>>> {
+        if let Some(value) = self.variables.borrow_mut().get(name) {
+            return Some(value.clone());
         }
-        None
+        if let Some(enclosing) = &self.enclosing {
+            let enclosing = enclosing.borrow();
+            enclosing.get(name)
+        } else {
+            None
+        }
     }
 
-    pub fn push_scope(&mut self) {
-        self.variables.push(HashMap::new());
+    fn new_scope(&self) -> Self {
+        EvalCtx {
+            variables: Rc::new(RefCell::new(HashMap::new())),
+            enclosing: Some(Rc::new(RefCell::new(self.clone()))),
+            break_loop: self.break_loop.clone(),
+            continue_loop: self.continue_loop.clone(),
+            return_value: self.return_value.clone(),
+        }
     }
 
-    pub fn pop_scope(&mut self) {
-        self.variables
-            .pop()
-            .expect("At least one scope should exist");
+    fn get_break_loop(&self) -> bool {
+        *self.break_loop.borrow()
+    }
+
+    fn get_continue_loop(&self) -> bool {
+        *self.continue_loop.borrow()
+    }
+
+    fn get_return_value(&self) -> Option<Literal> {
+        self.return_value.borrow().clone()
+    }
+
+    fn set_break_loop(&self, value: bool) {
+        *self.break_loop.borrow_mut() = value;
+    }
+
+    fn set_continue_loop(&self, value: bool) {
+        *self.continue_loop.borrow_mut() = value;
+    }
+
+    fn set_return_value(&self, value: Option<Literal>) {
+        *self.return_value.borrow_mut() = value;
     }
 }
 
@@ -102,7 +153,7 @@ pub trait Eval {
 impl Stmt {
     pub fn eval(&self, ctx: &mut EvalCtx) -> Result<()> {
         // If we're in a loop and we should break or continue, don't execute the statement
-        if ctx.break_loop || ctx.continue_loop {
+        if ctx.get_break_loop() || ctx.get_continue_loop() || ctx.get_return_value().is_some() {
             return Ok(());
         }
         match &self.intern {
@@ -121,16 +172,15 @@ impl Stmt {
                 Ok(())
             }
             StmtType::Block(stmts) => {
-                ctx.push_scope();
+                // ctx.push_scope();
+                let mut new_ctx = ctx.new_scope();
                 for stmt in stmts {
-                    if let Err(e) = stmt.eval(ctx) {
+                    if let Err(e) = stmt.eval(&mut new_ctx) {
                         // Make sure that the scope is popped before returning the error
-                        ctx.pop_scope();
                         return Err(e);
                     }
                     //TODO: if we'd want the block-return, we could add that here.
                 }
-                ctx.pop_scope();
                 Ok(())
             }
             StmtType::IfStmt(expr, then, els) => {
@@ -147,22 +197,38 @@ impl Stmt {
             StmtType::While(expr, stmt) => {
                 while bool::from(expr.eval(ctx)?) {
                     stmt.eval(ctx)?;
-                    if ctx.break_loop {
-                        ctx.continue_loop = false;
-                        ctx.break_loop = false;
+                    if ctx.get_break_loop() || ctx.get_return_value().is_some() {
+                        ctx.set_continue_loop(false);
+                        ctx.set_break_loop(false);
                         break;
                     }
-                    ctx.continue_loop = false;
-                    ctx.break_loop = false;
+                    ctx.set_continue_loop(false);
+                    ctx.set_break_loop(false);
                 }
                 Ok(())
             }
             StmtType::Break => {
-                ctx.break_loop = true;
+                ctx.set_break_loop(false);
                 Ok(())
             }
             StmtType::Continue => {
-                ctx.continue_loop = true;
+                ctx.set_continue_loop(false);
+                Ok(())
+            }
+            StmtType::Return(expr) => {
+                let literal = expr.eval(ctx)?;
+                ctx.set_return_value(Some(literal));
+                Ok(())
+            }
+            StmtType::Function(function_type, name, vec, stmt) => {
+                let function = Literal::Callable(Box::new(LoxFunction {
+                    tipe: function_type.clone(),
+                    name: name.clone(),
+                    args: vec.clone(),
+                    body: stmt.clone(),
+                    closure: ctx.clone(),
+                }));
+                ctx.insert(name.clone(), function);
                 Ok(())
             }
         }
@@ -176,11 +242,15 @@ impl Eval for Expr {
             ExprType::Grouping(expr) => expr.eval(ctx),
             ExprType::Unary(unary) => unary.eval(ctx),
             ExprType::Binary(binary) => binary.eval(ctx),
-            ExprType::Variable(name) => ctx.get(name).cloned().ok_or(ExecError {
-                message: format!("Undefined variable '{}'", name),
-                range: self.range.clone(),
-                backtrace: Backtrace::capture(),
-            }),
+            ExprType::Variable(name) => {
+                let res = ctx.get(name).ok_or(ExecError {
+                    message: format!("Undefined variable '{}'", name),
+                    range: self.range.clone(),
+                    backtrace: Backtrace::capture(),
+                })?;
+                let value = res.borrow().clone();
+                Ok(value)
+            }
             ExprType::Assign(name, expr) => {
                 let value = expr.eval(ctx)?;
                 ctx.assign(name, value.clone())?;

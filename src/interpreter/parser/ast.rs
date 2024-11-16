@@ -14,6 +14,7 @@ use std::fmt::Display;
 
 use crate::interpreter::{eval::LoxCallable, token::TokenType, SouceCodeRange};
 
+#[derive(Debug, Clone)]
 pub(crate) struct Stmt {
     pub intern: StmtType,
     pub range: SouceCodeRange,
@@ -25,15 +26,18 @@ impl Display for Stmt {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(crate) enum StmtType {
     Expr(Expr),
     IfStmt(Expr, Box<Stmt>, Option<Box<Stmt>>),
     Print(Expr),
+    Return(Expr),
     Var(String, Expr),
     While(Expr, Box<Stmt>),
     Block(Vec<Stmt>),
     Break,
     Continue,
+    Function(FunctionType, String, Vec<String>, Box<Stmt>),
 }
 
 impl Display for StmtType {
@@ -41,6 +45,9 @@ impl Display for StmtType {
         match self {
             StmtType::Expr(expr) => write!(f, "{}", expr),
             StmtType::Print(expr) => write!(f, "(print {})", expr),
+            StmtType::Return(expr) => {
+                write!(f, "(return {})", expr)
+            }
             StmtType::Var(name, initializer) => {
                 write!(f, "(var {} = {})", name, initializer)
             }
@@ -69,10 +76,12 @@ impl Display for StmtType {
             }
             StmtType::Break => write!(f, "break"),
             StmtType::Continue => write!(f, "continue"),
+            StmtType::Function(function, name, ..) => write!(f, "{} {}", function.tipe(), name),
         }
     }
 }
 
+#[derive(Debug, Clone)]
 pub(crate) struct Expr {
     pub intern: Box<ExprType>,
     pub range: SouceCodeRange,
@@ -84,6 +93,7 @@ impl Display for Expr {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(crate) enum ExprType {
     Literal(Literal),
     Grouping(Expr),
@@ -110,6 +120,21 @@ impl Display for ExprType {
     }
 }
 
+#[derive(Debug, Clone)]
+pub(crate) enum FunctionType {
+    /// Name, parameters, body
+    Function,
+}
+
+impl FunctionType {
+    pub fn tipe(&self) -> String {
+        match self {
+            FunctionType::Function => "function".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct Call {
     pub callee: Expr,
     pub arguments: Vec<Expr>,
@@ -127,12 +152,13 @@ impl Display for Call {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Default)]
 pub(crate) enum Literal {
     Number(f64),
     String(String),
     True,
     False,
+    #[default]
     Nil,
     Callable(Box<dyn LoxCallable>),
 }
@@ -204,6 +230,7 @@ impl Display for Literal {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(crate) struct Unary {
     pub intern: UnaryType,
     pub expr: Expr,
@@ -215,6 +242,7 @@ impl Display for Unary {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(crate) enum UnaryType {
     Not,
     Neg,
@@ -239,6 +267,7 @@ impl Display for UnaryType {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(crate) struct Binary {
     pub left: Expr,
     pub operator: Operator,
@@ -251,6 +280,7 @@ impl Display for Binary {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(crate) struct Logical {
     pub left: Expr,
     pub operator: LogicalOperator,
@@ -263,6 +293,7 @@ impl Display for Logical {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(crate) enum LogicalOperator {
     And,
     Or,
@@ -289,6 +320,7 @@ impl Display for LogicalOperator {
 
 // operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
 //                | "+"  | "-"  | "*" | "/" ;
+#[derive(Debug, Clone)]
 pub(crate) enum Operator {
     EqualEqual,
     NEqualEqual,

@@ -94,7 +94,7 @@ pub fn eval(input: &str) -> Result<parser::ast::Literal, InterpreterError> {
     let expr = parse_expr(input);
     match expr {
         Ok(expr) => {
-            let mut ctx = eval::EvalCtx::new();
+            let mut ctx = eval::EvalCtx::new_globals();
             let result = eval::Eval::eval(&expr, &mut ctx);
             match result {
                 Ok(result) => Ok(result),
@@ -112,7 +112,7 @@ pub fn run(input: &str) -> Result<(), InterpreterError> {
     let stmts = parse(input);
     match stmts {
         Ok(stmts) => {
-            let mut ctx = eval::EvalCtx::new();
+            let mut ctx = eval::EvalCtx::new_globals();
             for stmt in &stmts {
                 let result = stmt.eval(&mut ctx);
                 if let Err(err) = result {

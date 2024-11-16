@@ -127,11 +127,83 @@ impl ParserInstance {
     }
 
     fn declaration(&mut self) -> Result<Stmt> {
+        if self.mtch(vec![TokenType::Fun]) {
+            return self.function(FunctionType::Function);
+        }
         if self.mtch(vec![TokenType::Var]) {
             return self.var_declaration();
         }
 
         return self.statement();
+    }
+
+    fn function(&mut self, kind: FunctionType) -> Result<Stmt> {
+        let name = match self.peek().inner {
+            TokenType::Identifier(_) => self.advance(),
+            _ => {
+                return Err(ParserError {
+                    message: format!("Expect {} name.", kind.tipe()),
+                    token: self.peek().to_owned(),
+                    backtrace: Backtrace::force_capture(),
+                })
+            }
+        };
+        let range = name.range.clone();
+        let name = if let TokenType::Identifier(name) = &name.inner {
+            name.clone()
+        } else {
+            unreachable!()
+        };
+
+        self.consume(
+            TokenType::LeftParen,
+            format!("Expect '(' after {} name.", kind.tipe()).as_str(),
+        )?;
+        let mut parameters = Vec::new();
+
+        if !self.check(TokenType::RightParen) {
+            loop {
+                if parameters.len() >= 255 {
+                    self.error(
+                        &self.peek().clone(),
+                        "Cannot have more than 255 parameters.",
+                    );
+                }
+
+                let param = match self.peek().inner {
+                    TokenType::Identifier(_) => self.advance(),
+                    _ => {
+                        return Err(ParserError {
+                            message: "Expect parameter name.".to_string(),
+                            token: self.peek().to_owned(),
+                            backtrace: Backtrace::force_capture(),
+                        })
+                    }
+                };
+                let param = if let TokenType::Identifier(param) = &param.inner {
+                    param.clone()
+                } else {
+                    unreachable!()
+                };
+                parameters.push(param);
+
+                if !self.mtch(vec![TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenType::RightParen, "Expect ')' after parameters.")?;
+
+        self.consume(
+            TokenType::LeftBrace,
+            format!("Expect '{{' before {} body.", kind.tipe()).as_str(),
+        )?;
+        let body = self.block_statement()?;
+
+        return Ok(Stmt {
+            range: range.merge(&body.range),
+            intern: StmtType::Function(kind, name, parameters, Box::new(body)),
+        });
     }
 
     fn var_declaration(&mut self) -> Result<Stmt> {
@@ -178,6 +250,9 @@ impl ParserInstance {
         }
         if self.mtch(vec![TokenType::Print]) {
             return self.print_statement();
+        }
+        if self.mtch(vec![TokenType::Return]) {
+            return self.return_statement();
         }
         if self.mtch(vec![TokenType::For]) {
             return self.for_statement();
@@ -315,6 +390,24 @@ impl ParserInstance {
         return Ok(Stmt {
             range: self.previous().range.clone(),
             intern: StmtType::Block(statements),
+        });
+    }
+
+    fn return_statement(&mut self) -> Result<Stmt> {
+        let keyword = self.previous().to_owned();
+        let value = if self.check(TokenType::Semicolon) {
+            Expr {
+                range: keyword.range.clone(),
+                intern: Box::new(ExprType::Literal(Literal::Nil)),
+            }
+        } else {
+            self.expression()?
+        };
+
+        self.consume(TokenType::Semicolon, "Expect ';' after return value.")?;
+        return Ok(Stmt {
+            range: keyword.range.merge(&value.range),
+            intern: StmtType::Return(value),
         });
     }
 
