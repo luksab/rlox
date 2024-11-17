@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use super::{EvalCtx, ExecError, FunctionType, Literal, LoxCallable, Stmt};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct LoxFunction {
     // FunctionType, String, Vec<String>, Box<Stmt>
     pub tipe: FunctionType,
@@ -10,6 +10,18 @@ pub(crate) struct LoxFunction {
     pub args: Vec<String>,
     pub body: Box<Stmt>,
     pub closure: EvalCtx,
+}
+
+impl std::fmt::Debug for LoxFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // print all but the closure
+        f.debug_struct("LoxFunction")
+            .field("tipe", &self.tipe)
+            .field("name", &self.name)
+            .field("args", &self.args)
+            .field("body", &self.body)
+            .finish()
+    }
 }
 
 impl LoxCallable for LoxFunction {

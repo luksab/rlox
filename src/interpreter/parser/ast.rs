@@ -32,7 +32,7 @@ pub(crate) enum StmtType {
     IfStmt(Expr, Box<Stmt>, Option<Box<Stmt>>),
     Print(Expr),
     Return(Expr),
-    Var(String, Expr),
+    Var(String, Option<Expr>),
     While(Expr, Box<Stmt>),
     Block(Vec<Stmt>),
     Break,
@@ -48,9 +48,10 @@ impl Display for StmtType {
             StmtType::Return(expr) => {
                 write!(f, "(return {})", expr)
             }
-            StmtType::Var(name, initializer) => {
-                write!(f, "(var {} = {})", name, initializer)
-            }
+            StmtType::Var(name, initializer) => match initializer {
+                Some(initializer) => write!(f, "(var {} = {})", name, initializer),
+                None => write!(f, "(var {})", name),
+            },
             StmtType::IfStmt(condition, then_branch, else_branch) => {
                 let mut result = String::new();
                 result.push_str("(if ");
@@ -81,10 +82,20 @@ impl Display for StmtType {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct ExprId(pub usize);
+
+impl Display for ExprId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct Expr {
     pub intern: Box<ExprType>,
     pub range: SouceCodeRange,
+    pub id: ExprId,
 }
 
 impl Display for Expr {

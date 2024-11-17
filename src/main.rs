@@ -78,10 +78,11 @@ fn main() {
 
             let result = interpreter::run(&file_contents);
             if let Err(err) = result {
-                // eprintln!("{}", err);
+                eprintln!("{}", err);
                 let code = match err {
                     interpreter::InterpreterError::LexError => 65,
                     interpreter::InterpreterError::ParseError(_) => 65,
+                    interpreter::InterpreterError::ResolverError(_) => 75,
                     interpreter::InterpreterError::ExecError(_) => 70,
                 };
                 std::process::exit(code);

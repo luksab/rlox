@@ -29,6 +29,7 @@ pub struct EvalCtx {
     ///
     /// The last element is the innermost scope
     variables: Rc<RefCell<HashMap<String, Rc<RefCell<Literal>>>>>,
+    globals: Rc<RefCell<HashMap<String, Rc<RefCell<Literal>>>>>,
     enclosing: Option<Rc<RefCell<EvalCtx>>>,
     /// If the current loop should break
     break_loop: Rc<RefCell<bool>>,
@@ -36,22 +37,25 @@ pub struct EvalCtx {
     continue_loop: Rc<RefCell<bool>>,
     /// If the current function should return
     return_value: Rc<RefCell<Option<Literal>>>,
+    locals: Rc<RefCell<HashMap<ExprId, usize>>>,
 }
 
 impl Clone for EvalCtx {
     fn clone(&self) -> Self {
         EvalCtx {
             variables: self.variables.clone(),
+            globals: self.globals.clone(),
             enclosing: self.enclosing.clone(),
             break_loop: self.break_loop.clone(),
             continue_loop: self.continue_loop.clone(),
             return_value: self.return_value.clone(),
+            locals: self.locals.clone(),
         }
     }
 }
 
 impl EvalCtx {
-    pub fn new_globals() -> Self {
+    pub fn new_globals(locals: HashMap<ExprId, usize>) -> Self {
         let mut globals = HashMap::new();
         globals.insert(
             "clock".to_string(),
@@ -66,58 +70,85 @@ impl EvalCtx {
             )))),
         );
         EvalCtx {
-            variables: Rc::new(RefCell::new(globals)),
+            globals: Rc::new(RefCell::new(globals)),
+            variables: Rc::new(RefCell::new(HashMap::new())),
             enclosing: None,
             break_loop: Rc::new(RefCell::new(false)),
             continue_loop: Rc::new(RefCell::new(false)),
             return_value: Rc::new(RefCell::new(None)),
+            locals: Rc::new(RefCell::new(locals)),
         }
     }
 
     pub fn insert(&mut self, name: String, value: Literal) {
-        self.variables.borrow_mut().insert(name, Rc::new(RefCell::new(value)));
+        self.variables
+            .borrow_mut()
+            .insert(name, Rc::new(RefCell::new(value)));
     }
 
-    pub fn assign(&mut self, name: &str, value: Literal) -> Result<()> {
-        if let Some(scope) = self.variables.borrow_mut().get_mut(name) {
-            *scope.borrow_mut() = value;
-            return Ok(());
-        }
-        if let Some(enclosing) = &self.enclosing {
-            let mut enclosing = enclosing.borrow_mut();
-            enclosing.assign(name, value)?;
-            return Ok(());
-        }
-        Err(ExecError {
-            message: format!("Undefined variable '{}'", name),
-            range: SouceCodeRange {
-                line: 0,
-                start_column: 0,
-                length: 0,
-            },
-            backtrace: Backtrace::capture(),
-        })
-    }
-
-    pub fn get(&self, name: &str) -> Option<Rc<RefCell<Literal>>> {
-        if let Some(value) = self.variables.borrow_mut().get(name) {
-            return Some(value.clone());
-        }
-        if let Some(enclosing) = &self.enclosing {
-            let enclosing = enclosing.borrow();
-            enclosing.get(name)
+    pub fn assign(&mut self, name: &str, id: ExprId, value: Literal) -> Result<()> {
+        let distance = self.locals.borrow().get(&id).cloned();
+        if let Some(distance) = distance {
+            let ctx = self.ancestor(distance);
+            if let Some(scope) = ctx.borrow().variables.borrow_mut().get_mut(name) {
+                *scope.borrow_mut() = value;
+                return Ok(());
+            }
+            return Err(ExecError {
+                message: format!("Can't assign to undefined local variable '{}'", name),
+                range: SouceCodeRange {
+                    line: 0,
+                    start_column: 0,
+                    length: 0,
+                },
+                backtrace: Backtrace::capture(),
+            });
         } else {
-            None
+            if let Some(scope) = self.globals.borrow_mut().get_mut(name) {
+                *scope.borrow_mut() = value;
+                return Ok(());
+            }
+            return Err(ExecError {
+                message: format!("Can't assign to undefined global variable '{}'", name),
+                range: SouceCodeRange {
+                    line: 0,
+                    start_column: 0,
+                    length: 0,
+                },
+                backtrace: Backtrace::capture(),
+            });
         }
+    }
+
+    pub fn get(&self, name: &str, id: ExprId) -> Option<Rc<RefCell<Literal>>> {
+        let distance = self.locals.borrow().get(&id).cloned();
+        if let Some(distance) = distance {
+            let ctx = self.ancestor(distance);
+            let x = ctx.borrow().variables.borrow().get(name).cloned();
+            x
+        } else {
+            self.globals.borrow().get(name).cloned()
+        }
+    }
+
+    fn ancestor(&self, distance: usize) -> Rc<RefCell<EvalCtx>> {
+        let mut ctx = self.clone();
+        for _ in 0..distance {
+            let enclosing = ctx.enclosing.as_ref().unwrap().borrow().clone();
+            ctx = enclosing;
+        }
+        Rc::new(RefCell::new(ctx))
     }
 
     fn new_scope(&self) -> Self {
         EvalCtx {
             variables: Rc::new(RefCell::new(HashMap::new())),
+            globals: self.globals.clone(),
             enclosing: Some(Rc::new(RefCell::new(self.clone()))),
             break_loop: self.break_loop.clone(),
             continue_loop: self.continue_loop.clone(),
             return_value: self.return_value.clone(),
+            locals: self.locals.clone(),
         }
     }
 
@@ -167,7 +198,10 @@ impl Stmt {
                 Ok(())
             }
             StmtType::Var(name, initalizer) => {
-                let value = initalizer.eval(ctx)?;
+                let value = match initalizer {
+                    Some(init) => init.eval(ctx)?,
+                    None => Literal::Nil,
+                };
                 ctx.insert(name.clone(), value);
                 Ok(())
             }
@@ -243,8 +277,8 @@ impl Eval for Expr {
             ExprType::Unary(unary) => unary.eval(ctx),
             ExprType::Binary(binary) => binary.eval(ctx),
             ExprType::Variable(name) => {
-                let res = ctx.get(name).ok_or(ExecError {
-                    message: format!("Undefined variable '{}'", name),
+                let res = ctx.get(name, self.id).ok_or(ExecError {
+                    message: format!("Can't get undefined variable {} '{name}'", self.id),
                     range: self.range.clone(),
                     backtrace: Backtrace::capture(),
                 })?;
@@ -253,7 +287,7 @@ impl Eval for Expr {
             }
             ExprType::Assign(name, expr) => {
                 let value = expr.eval(ctx)?;
-                ctx.assign(name, value.clone())?;
+                ctx.assign(name, self.id, value.clone())?;
                 Ok(value)
             }
             ExprType::Logical(logical) => logical.eval(ctx),

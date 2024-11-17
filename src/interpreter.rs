@@ -1,6 +1,7 @@
 mod eval;
 mod lexer;
 mod parser;
+mod resolver;
 
 use std::fmt::Display;
 
@@ -31,6 +32,7 @@ impl SouceCodeRange {
 pub(crate) enum InterpreterError {
     LexError,
     ParseError(()),
+    ResolverError(resolver::ResolverError),
     ExecError(()),
 }
 
@@ -38,7 +40,8 @@ impl Display for InterpreterError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InterpreterError::LexError => write!(f, "Lex error"),
-            InterpreterError::ParseError(err) => write!(f, "Parse error"),
+            InterpreterError::ResolverError(err) => write!(f, "Resolver error: {:?}", err),
+            InterpreterError::ParseError(_) => write!(f, "Parse error"),
             InterpreterError::ExecError(_) => write!(f, "Exec error"),
         }
     }
@@ -94,7 +97,9 @@ pub fn eval(input: &str) -> Result<parser::ast::Literal, InterpreterError> {
     let expr = parse_expr(input);
     match expr {
         Ok(expr) => {
-            let mut ctx = eval::EvalCtx::new_globals();
+            let mut resolver = resolver::Resolver::new();
+            resolver.resolve_expr(&expr).map_err(InterpreterError::ResolverError)?;
+            let mut ctx = eval::EvalCtx::new_globals(resolver.into_resolved_exprs());
             let result = eval::Eval::eval(&expr, &mut ctx);
             match result {
                 Ok(result) => Ok(result),
@@ -112,7 +117,10 @@ pub fn run(input: &str) -> Result<(), InterpreterError> {
     let stmts = parse(input);
     match stmts {
         Ok(stmts) => {
-            let mut ctx = eval::EvalCtx::new_globals();
+            let mut resolver = resolver::Resolver::new();
+            resolver.resolve(&stmts).map_err(InterpreterError::ResolverError)?;
+            println!("Resolved; {}", resolver);
+            let mut ctx = eval::EvalCtx::new_globals(resolver.into_resolved_exprs());
             for stmt in &stmts {
                 let result = stmt.eval(&mut ctx);
                 if let Err(err) = result {

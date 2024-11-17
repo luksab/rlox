@@ -22,10 +22,26 @@ impl Display for ParserError {
 
 type Result<T> = std::result::Result<T, ParserError>;
 
+struct ExprIdCounter {
+    counter: usize,
+}
+
+impl ExprIdCounter {
+    fn new() -> Self {
+        Self { counter: 0 }
+    }
+
+    fn next(&mut self) -> ExprId {
+        self.counter += 1;
+        return ExprId(self.counter);
+    }
+}
+
 pub struct ParserInstance {
     pub current: usize,
     pub had_error: bool,
     pub tokens: Vec<Token>,
+    exp_id_counter: ExprIdCounter,
 }
 
 impl ParserInstance {
@@ -78,6 +94,7 @@ impl ParserInstance {
             current: 0,
             tokens,
             had_error: false,
+            exp_id_counter: ExprIdCounter::new(),
         }
     }
 
@@ -225,12 +242,9 @@ impl ParserInstance {
         };
 
         let initializer = if self.mtch(vec![TokenType::Equal]) {
-            self.expression()?
+            Some(self.expression()?)
         } else {
-            Expr {
-                range: range.clone(),
-                intern: Box::new(ExprType::Literal(Literal::Nil)),
-            }
+            None
         };
 
         self.consume(
@@ -317,6 +331,7 @@ impl ParserInstance {
             Expr {
                 range: self.previous().range.clone(),
                 intern: Box::new(ExprType::Literal(Literal::True)),
+                id: self.exp_id_counter.next(),
             }
         };
         self.consume(TokenType::Semicolon, "Expect ';' after loop condition.")?;
@@ -399,6 +414,7 @@ impl ParserInstance {
             Expr {
                 range: keyword.range.clone(),
                 intern: Box::new(ExprType::Literal(Literal::Nil)),
+                id: self.exp_id_counter.next(),
             }
         } else {
             self.expression()?
@@ -444,6 +460,7 @@ impl ParserInstance {
                 return Ok(Expr {
                     range: equals.range.merge(&value.range),
                     intern: Box::new(ExprType::Assign(name.clone(), value)),
+                    id: self.exp_id_counter.next(),
                 });
             }
 
@@ -470,6 +487,7 @@ impl ParserInstance {
                     operator: (&operator).into(),
                     right: right,
                 })),
+                id: self.exp_id_counter.next(),
             };
         }
 
@@ -489,6 +507,7 @@ impl ParserInstance {
                     operator: (&operator).into(),
                     right: right,
                 })),
+                id: self.exp_id_counter.next(),
             };
         }
 
@@ -509,6 +528,7 @@ impl ParserInstance {
                     operator: (&operator).into(),
                     right: right,
                 })),
+                id: self.exp_id_counter.next(),
             }
         }
 
@@ -561,6 +581,7 @@ impl ParserInstance {
                     operator: (&operator).into(),
                     right: right,
                 })),
+                id: self.exp_id_counter.next(),
             };
         }
 
@@ -581,6 +602,7 @@ impl ParserInstance {
                     operator: (&operator).into(),
                     right: right,
                 })),
+                id: self.exp_id_counter.next(),
             };
         }
 
@@ -600,6 +622,7 @@ impl ParserInstance {
                     operator: (&operator).into(),
                     right: right,
                 })),
+                id: self.exp_id_counter.next(),
             };
         }
 
@@ -619,6 +642,7 @@ impl ParserInstance {
                     intern: (&operator).into(),
                     expr: right,
                 })),
+                id: self.exp_id_counter.next(),
             });
         }
 
@@ -660,6 +684,7 @@ impl ParserInstance {
                 callee: callee,
                 arguments,
             })),
+            id: self.exp_id_counter.next(),
         });
     }
 
@@ -670,18 +695,21 @@ impl ParserInstance {
             return Ok(Expr {
                 range: self.previous().range.clone(),
                 intern: Box::new(ExprType::Literal(Literal::False)),
+                id: self.exp_id_counter.next(),
             });
         }
         if self.mtch(vec![TokenType::True]) {
             return Ok(Expr {
                 range: self.previous().range.clone(),
                 intern: Box::new(ExprType::Literal(Literal::True)),
+                id: self.exp_id_counter.next(),
             });
         }
         if self.mtch(vec![TokenType::Nil]) {
             return Ok(Expr {
                 range: self.previous().range.clone(),
                 intern: Box::new(ExprType::Literal(Literal::Nil)),
+                id: self.exp_id_counter.next(),
             });
         }
 
@@ -691,6 +719,7 @@ impl ParserInstance {
                 return Ok(Expr {
                     range: self.previous().range.clone(),
                     intern: Box::new(ExprType::Literal(Literal::Number(n))),
+                    id: self.exp_id_counter.next(),
                 });
             }
             TokenType::String(s) => {
@@ -698,6 +727,7 @@ impl ParserInstance {
                 return Ok(Expr {
                     range: self.previous().range.clone(),
                     intern: Box::new(ExprType::Literal(Literal::String(s))),
+                    id: self.exp_id_counter.next(),
                 });
             }
             TokenType::Identifier(s) => {
@@ -705,6 +735,7 @@ impl ParserInstance {
                 return Ok(Expr {
                     range: self.previous().range.clone(),
                     intern: Box::new(ExprType::Variable(s)),
+                    id: self.exp_id_counter.next(),
                 });
             }
             _ => (),
@@ -716,6 +747,7 @@ impl ParserInstance {
             return Ok(Expr {
                 range: self.previous().range.clone(),
                 intern: Box::new(ExprType::Grouping(expr)),
+                id: self.exp_id_counter.next(),
             });
         }
 
