@@ -1,0 +1,12 @@
+class Test {}
+print Test;
+fun t() {
+  print "t";
+}
+var test = Test();
+print test;
+test.a = 5;
+test.t = t;
+print test.a;
+
+test.t();

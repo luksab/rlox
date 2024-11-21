@@ -144,6 +144,9 @@ impl ParserInstance {
     }
 
     fn declaration(&mut self) -> Result<Stmt> {
+        if self.mtch(vec![TokenType::Class]) {
+            return self.class_declaration();
+        }
         if self.mtch(vec![TokenType::Fun]) {
             return self.function(FunctionType::Function);
         }
@@ -152,6 +155,45 @@ impl ParserInstance {
         }
 
         return self.statement();
+    }
+
+    fn class_declaration(&mut self) -> Result<Stmt> {
+        let name = match self.peek().inner {
+            TokenType::Identifier(_) => self.advance(),
+            _ => {
+                return Err(ParserError {
+                    message: "Expect class name.".to_string(),
+                    token: self.peek().to_owned(),
+                    backtrace: Backtrace::force_capture(),
+                })
+            }
+        };
+        let range = name.range.clone();
+        let name = if let TokenType::Identifier(name) = &name.inner {
+            name.clone()
+        } else {
+            unreachable!()
+        };
+
+        self.consume(
+            TokenType::LeftBrace,
+            "Expect '{' before class body.".to_string().as_str(),
+        )?;
+
+        let mut methods = Vec::new();
+        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
+            methods.push(self.function(FunctionType::Method)?);
+        }
+
+        self.consume(
+            TokenType::RightBrace,
+            "Expect '}' after class body.".to_string().as_str(),
+        )?;
+
+        return Ok(Stmt {
+            range: range.merge(&self.previous().range),
+            intern: StmtType::Class(name, methods),
+        });
     }
 
     fn function(&mut self, kind: FunctionType) -> Result<Stmt> {
@@ -462,6 +504,12 @@ impl ParserInstance {
                     intern: Box::new(ExprType::Assign(name.clone(), value)),
                     id: self.exp_id_counter.next(),
                 });
+            } else if let ExprType::Get(ref obj, ref name) = *expr.intern {
+                return Ok(Expr {
+                    range: equals.range.merge(&value.range),
+                    intern: Box::new(ExprType::Set(obj.clone(), name.clone(), value)),
+                    id: self.exp_id_counter.next(),
+                });
             }
 
             // return Err(ParserError {
@@ -655,6 +703,29 @@ impl ParserInstance {
         loop {
             if self.mtch(vec![TokenType::LeftParen]) {
                 expr = self.finish_call(expr)?;
+            }
+            if self.mtch(vec![TokenType::Dot]) {
+                let name = match self.peek().inner {
+                    TokenType::Identifier(_) => self.advance(),
+                    _ => {
+                        return Err(ParserError {
+                            message: "Expect property name after '.'.".to_string(),
+                            token: self.peek().to_owned(),
+                            backtrace: Backtrace::force_capture(),
+                        })
+                    }
+                };
+                let name_str = if let TokenType::Identifier(name) = &name.inner {
+                    name.clone()
+                } else {
+                    unreachable!()
+                };
+
+                expr = Expr {
+                    range: expr.range.merge(&name.range),
+                    intern: Box::new(ExprType::Get(expr, name_str)),
+                    id: self.exp_id_counter.next(),
+                };
             } else {
                 break;
             }

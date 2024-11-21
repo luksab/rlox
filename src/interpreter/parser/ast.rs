@@ -10,9 +10,9 @@
 // operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
 //                | "+"  | "-"  | "*" | "/" ;
 
-use std::fmt::Display;
+use std::{cell::RefCell, fmt::Display, rc::Rc};
 
-use crate::interpreter::{eval::LoxCallable, token::TokenType, SouceCodeRange};
+use crate::interpreter::{eval::{lox_class::LoxClass, lox_instance::LoxInstance, LoxCallable}, token::TokenType, SouceCodeRange};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Stmt {
@@ -38,6 +38,7 @@ pub(crate) enum StmtType {
     Break,
     Continue,
     Function(FunctionType, String, Vec<String>, Box<Stmt>),
+    Class(String, Vec<Stmt>),
 }
 
 impl Display for StmtType {
@@ -78,6 +79,15 @@ impl Display for StmtType {
             StmtType::Break => write!(f, "break"),
             StmtType::Continue => write!(f, "continue"),
             StmtType::Function(function, name, ..) => write!(f, "{} {}", function.tipe(), name),
+            StmtType::Class(name, methods) => {
+                let mut result = String::new();
+                result.push_str(&format!("(class {} ", name));
+                for method in methods {
+                    result.push_str(&format!("{} ", method));
+                }
+                result.push_str(")");
+                write!(f, "{}", result)
+            }
         }
     }
 }
@@ -114,6 +124,8 @@ pub(crate) enum ExprType {
     Variable(String),
     Assign(String, Expr),
     Call(Call),
+    Get(Expr, String),
+    Set(Expr, String, Expr),
 }
 
 impl Display for ExprType {
@@ -127,6 +139,8 @@ impl Display for ExprType {
             ExprType::Assign(name, expr) => write!(f, "(assign {name} {expr})"),
             ExprType::Logical(logical) => write!(f, "{logical}"),
             ExprType::Call(call) => write!(f, "{call}"),
+            ExprType::Get(expr, name) => write!(f, "(get {expr} {name})"),
+            ExprType::Set(expr, name, value) => write!(f, "(set {expr} {name} {value})"),
         }
     }
 }
@@ -135,12 +149,14 @@ impl Display for ExprType {
 pub(crate) enum FunctionType {
     /// Name, parameters, body
     Function,
+    Method,
 }
 
 impl FunctionType {
     pub fn tipe(&self) -> String {
         match self {
             FunctionType::Function => "function".to_string(),
+            FunctionType::Method => "method".to_string(),
         }
     }
 }
@@ -172,6 +188,8 @@ pub(crate) enum Literal {
     #[default]
     Nil,
     Callable(Box<dyn LoxCallable>),
+    Class(LoxClass),
+    Instance(Rc<RefCell<LoxInstance>>),
 }
 
 impl From<bool> for Literal {
@@ -192,6 +210,8 @@ impl From<&Literal> for bool {
             Literal::Number(num) => *num != 0.0,
             Literal::String(_) => true,
             Literal::Callable(_) => true,
+            Literal::Class(_) => true,
+            Literal::Instance(_) => true,
         }
     }
 }
@@ -217,6 +237,8 @@ impl std::fmt::Debug for Literal {
             Literal::False => write!(f, "false"),
             Literal::Nil => write!(f, "nil"),
             Literal::Callable(lox_callable) => write!(f, "{:?}", lox_callable),
+            Literal::Class(lox_class) => write!(f, "{:?}", lox_class),
+            Literal::Instance(lox_instance) => write!(f, "{:?}", lox_instance),
         }
     }
 }
@@ -237,6 +259,8 @@ impl Display for Literal {
             Literal::False => write!(f, "false"),
             Literal::Nil => write!(f, "nil"),
             Literal::Callable(lox_callable) => write!(f, "{}", lox_callable),
+            Literal::Class(lox_class) => write!(f, "{}", lox_class),
+            Literal::Instance(lox_instance) => write!(f, "{}", lox_instance.borrow()),
         }
     }
 }

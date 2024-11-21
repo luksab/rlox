@@ -119,7 +119,7 @@ pub fn run(input: &str) -> Result<(), InterpreterError> {
         Ok(stmts) => {
             let mut resolver = resolver::Resolver::new();
             resolver.resolve(&stmts).map_err(InterpreterError::ResolverError)?;
-            println!("Resolved; {}", resolver);
+            // println!("Resolved; {}", resolver);
             let mut ctx = eval::EvalCtx::new_globals(resolver.into_resolved_exprs());
             for stmt in &stmts {
                 let result = stmt.eval(&mut ctx);

@@ -76,6 +76,10 @@ impl Resolver {
                 self.define(name);
                 self.resolve_function(args, body)?;
             }
+            StmtType::Class(ref name, ref methods) => {
+                self.declare(name, &stmt.range)?;
+                self.define(name);
+            }
             StmtType::Expr(ref expr) => {
                 self.resolve_expr(expr)?;
             }
@@ -151,6 +155,13 @@ impl Resolver {
             ExprType::Unary(ref unary) => {
                 self.resolve_expr(&unary.expr)?;
             }
+            ExprType::Get(ref get, ref _name) => {
+                self.resolve_expr(&get)?;
+            }
+            ExprType::Set(ref set, ref _name, ref value) => {
+                self.resolve_expr(value)?;
+                self.resolve_expr(&set)?;
+            }
         }
         Ok(())
     }
@@ -158,7 +169,7 @@ impl Resolver {
     fn resolve_local(&mut self, expr: &Expr, name: &str) {
         for (i, scope) in self.scopes.iter().rev().enumerate() {
             if scope.contains_key(name) {
-                println!("Resolved {name}({:?}) at scope {i}", expr.id);
+                // println!("Resolved {name}({:?}) at scope {i}", expr.id);
                 self.resolved_exprs.insert(expr.id, i);
                 return;
             }

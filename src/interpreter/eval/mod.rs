@@ -1,7 +1,11 @@
 pub mod lox_callable;
+pub mod lox_class;
 pub mod lox_function;
+pub mod lox_instance;
 pub(crate) use lox_callable::LoxCallable;
+use lox_class::LoxClass;
 use lox_function::LoxFunction;
+use lox_instance::LoxInstance;
 use std::{backtrace::Backtrace, cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
 use super::{parser::ast::*, Expr, SouceCodeRange};
@@ -14,6 +18,16 @@ pub struct ExecError {
     pub(crate) backtrace: Backtrace,
 }
 
+impl ExecError {
+    pub(crate) fn new(message: String, range: SouceCodeRange) -> Self {
+        Self {
+            message,
+            range,
+            backtrace: Backtrace::capture(),
+        }
+    }
+}
+
 impl Display for ExecError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // writeln!(f, "{}", self.backtrace)?;
@@ -21,7 +35,7 @@ impl Display for ExecError {
     }
 }
 
-type Result<T> = std::result::Result<T, ExecError>;
+type ExecResult<T> = std::result::Result<T, ExecError>;
 
 #[derive(Debug, PartialEq)]
 pub struct EvalCtx {
@@ -86,7 +100,7 @@ impl EvalCtx {
             .insert(name, Rc::new(RefCell::new(value)));
     }
 
-    pub fn assign(&mut self, name: &str, id: ExprId, value: Literal) -> Result<()> {
+    pub fn assign(&mut self, name: &str, id: ExprId, value: Literal) -> ExecResult<()> {
         let distance = self.locals.borrow().get(&id).cloned();
         if let Some(distance) = distance {
             let ctx = self.ancestor(distance);
@@ -178,11 +192,11 @@ impl EvalCtx {
 }
 
 pub trait Eval {
-    fn eval(&self, ctx: &mut EvalCtx) -> Result<Literal>;
+    fn eval(&self, ctx: &mut EvalCtx) -> ExecResult<Literal>;
 }
 
 impl Stmt {
-    pub fn eval(&self, ctx: &mut EvalCtx) -> Result<()> {
+    pub fn eval(&self, ctx: &mut EvalCtx) -> ExecResult<()> {
         // If we're in a loop and we should break or continue, don't execute the statement
         if ctx.get_break_loop() || ctx.get_continue_loop() || ctx.get_return_value().is_some() {
             return Ok(());
@@ -265,12 +279,17 @@ impl Stmt {
                 ctx.insert(name.clone(), function);
                 Ok(())
             }
+            StmtType::Class(name, methods) => {
+                let class = Literal::Class(LoxClass::new(name.clone(), methods.clone()));
+                ctx.insert(name.clone(), class);
+                Ok(())
+            }
         }
     }
 }
 
 impl Eval for Expr {
-    fn eval(&self, ctx: &mut EvalCtx) -> Result<Literal> {
+    fn eval(&self, ctx: &mut EvalCtx) -> ExecResult<Literal> {
         match &*self.intern {
             ExprType::Literal(literal) => Ok(literal.to_owned()),
             ExprType::Grouping(expr) => expr.eval(ctx),
@@ -292,12 +311,44 @@ impl Eval for Expr {
             }
             ExprType::Logical(logical) => logical.eval(ctx),
             ExprType::Call(call) => call.eval(ctx),
+            ExprType::Get(get, name) => {
+                let object = get.eval(ctx)?;
+                match object {
+                    Literal::Instance(instance) => {
+                        if let Some(method) = instance.borrow().methods.get(name) {
+                            Ok(Literal::Callable(Box::new(method.clone())))
+                        } else {
+                            instance.borrow().get(name)
+                        }
+                    }
+                    _ => Err(ExecError {
+                        message: "Only instances have properties".to_string(),
+                        range: self.range.clone(),
+                        backtrace: Backtrace::capture(),
+                    }),
+                }
+            }
+            ExprType::Set(set, name, value) => {
+                let object = set.eval(ctx)?;
+
+                match object {
+                    Literal::Instance(instance) => {
+                        // // check, if name exists, before setting it
+                        // instance.borrow().get(name)?;
+                        instance.borrow_mut().set(name, value.eval(ctx)?)
+                    }
+                    _ => Err(ExecError::new(
+                        "Only instances have fields".to_string(),
+                        self.range.clone(),
+                    )),
+                }
+            }
         }
     }
 }
 
 impl Eval for Call {
-    fn eval(&self, ctx: &mut EvalCtx) -> Result<Literal> {
+    fn eval(&self, ctx: &mut EvalCtx) -> ExecResult<Literal> {
         let callee = self.callee.eval(ctx)?;
 
         let mut arguments = Vec::new();
@@ -320,6 +371,16 @@ impl Eval for Call {
                 }
                 callable.call(arguments, ctx)
             }
+            Literal::Class(class) => {
+                let instance = Literal::Instance(Rc::new(RefCell::new(LoxInstance::new(&class))));
+                let init = class.methods.get("init").cloned();
+                if let Some(init) = init {
+                    let mut new_ctx = ctx.new_scope();
+                    new_ctx.insert("this".to_string(), instance.clone());
+                    init.body.eval(&mut new_ctx)?;
+                }
+                Ok(instance)
+            }
             _ => Err(ExecError {
                 message: "Can only call functions and classes".to_string(),
                 range: self.callee.range.clone(),
@@ -330,7 +391,7 @@ impl Eval for Call {
 }
 
 impl Eval for Logical {
-    fn eval(&self, ctx: &mut EvalCtx) -> Result<Literal> {
+    fn eval(&self, ctx: &mut EvalCtx) -> ExecResult<Literal> {
         let left = self.left.eval(ctx)?;
         match (&self.operator, bool::from(&left)) {
             (LogicalOperator::And, false) => Ok(left),
@@ -341,7 +402,7 @@ impl Eval for Logical {
 }
 
 impl Eval for Unary {
-    fn eval(&self, ctx: &mut EvalCtx) -> Result<Literal> {
+    fn eval(&self, ctx: &mut EvalCtx) -> ExecResult<Literal> {
         match &self.intern {
             UnaryType::Neg => match self.expr.eval(ctx)? {
                 Literal::Number(n) => Ok(Literal::Number(-n)),
@@ -357,7 +418,7 @@ impl Eval for Unary {
 }
 
 impl Eval for Binary {
-    fn eval(&self, ctx: &mut EvalCtx) -> Result<Literal> {
+    fn eval(&self, ctx: &mut EvalCtx) -> ExecResult<Literal> {
         match &self.operator {
             Operator::Plus => match (self.left.eval(ctx)?, self.right.eval(ctx)?) {
                 (Literal::Number(l), Literal::Number(r)) => Ok(Literal::Number(l + r)),
