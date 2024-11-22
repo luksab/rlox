@@ -1,5 +1,5 @@
 mod eval;
-mod lexer;
+pub mod lexer;
 mod parser;
 mod resolver;
 
@@ -48,83 +48,48 @@ impl Display for InterpreterError {
     }
 }
 
-pub fn lex(input: &str) -> Result<Vec<token::Token>, ()> {
-    tokenize(input)
-}
-
 pub fn parse(input: &str) -> Result<Vec<Stmt>, InterpreterError> {
-    let tokens = lex(input);
-    match tokens {
-        Ok(tokens) => {
-            let mut parser = parser::ParserInstance::new(tokens);
-            let stmts = parser.parse();
-            match stmts {
-                Ok(stmts) => Ok(stmts),
-                //TODO: FIX ME!!!
-                Err(err) => Err(InterpreterError::ParseError(())),
-            }
-        }
-        Err(_) => {
-            eprintln!("Failed to lex input");
-            Err(InterpreterError::LexError)
-        }
-    }
+    let tokens = tokenize(input).map_err(|_| InterpreterError::LexError)?;
+
+    let mut parser = parser::ParserInstance::new(tokens);
+    parser.parse().map_err(|_| InterpreterError::ParseError(()))
 }
 
 pub fn parse_expr(input: &str) -> Result<Expr, InterpreterError> {
-    let tokens = lex(input);
-    match tokens {
-        Ok(tokens) => {
-            let mut parser = parser::ParserInstance::new(tokens);
-            let expr = parser.parse_expr();
-            match expr {
-                Ok(expr) => Ok(expr),
-                Err(err) => Err(InterpreterError::ParseError(())),
-            }
-        }
-        Err(_) => {
-            eprintln!("Failed to lex input");
-            Err(InterpreterError::LexError)
-        }
-    }
+    let tokens = tokenize(input).map_err(|_| InterpreterError::LexError)?;
+    let mut parser = parser::ParserInstance::new(tokens);
+    parser
+        .parse_expr()
+        .map_err(|_| InterpreterError::ParseError(()))
 }
+
 pub fn eval(input: &str) -> Result<parser::ast::Literal, InterpreterError> {
-    let expr = parse_expr(input);
-    match expr {
-        Ok(expr) => {
-            let mut resolver = resolver::Resolver::new();
-            resolver.resolve_expr(&expr).map_err(InterpreterError::ResolverError)?;
-            let mut ctx = eval::EvalCtx::new_globals(resolver.into_resolved_exprs());
-            let result = eval::Eval::eval(&expr, &mut ctx);
-            match result {
-                Ok(result) => Ok(result),
-                Err(err) => {
-                    eprintln!("{}", err);
-                    Err(InterpreterError::ExecError(()))
-                }
-            }
-        }
-        Err(err) => Err(err),
-    }
+    let expr = parse_expr(input)?;
+
+    let mut resolver = resolver::Resolver::new();
+    resolver
+        .resolve_expr(&expr)
+        .map_err(InterpreterError::ResolverError)?;
+
+    let mut ctx = eval::EvalCtx::new_globals(resolver.into_resolved_exprs());
+    eval::Eval::eval(&expr, &mut ctx).map_err(|_| InterpreterError::ExecError(()))
 }
 
 pub fn run(input: &str) -> Result<(), InterpreterError> {
-    let stmts = parse(input);
-    match stmts {
-        Ok(stmts) => {
-            let mut resolver = resolver::Resolver::new();
-            resolver.resolve(&stmts).map_err(InterpreterError::ResolverError)?;
-            // println!("Resolved; {}", resolver);
-            let mut ctx = eval::EvalCtx::new_globals(resolver.into_resolved_exprs());
-            for stmt in &stmts {
-                let result = stmt.eval(&mut ctx);
-                if let Err(err) = result {
-                    eprintln!("ExecError: {}", err);
-                    return Err(InterpreterError::ExecError(()));
-                }
-            }
-            Ok(())
+    let stmts = parse(input).map_err(|_| InterpreterError::ParseError(()))?;
+
+    let mut resolver = resolver::Resolver::new();
+    resolver
+        .resolve(&stmts)
+        .map_err(InterpreterError::ResolverError)?;
+
+    let mut ctx = eval::EvalCtx::new_globals(resolver.into_resolved_exprs());
+    for stmt in &stmts {
+        let result = stmt.eval(&mut ctx);
+        if let Err(err) = result {
+            eprintln!("ExecError: {}", err);
+            return Err(InterpreterError::ExecError(()));
         }
-        Err(err) => Err(err),
     }
+    Ok(())
 }

@@ -4,6 +4,8 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 
+use interpreter::lexer::tokenize;
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
@@ -21,7 +23,7 @@ fn main() {
                 String::new()
             });
 
-            let tokens = interpreter::lex(&file_contents);
+            let tokens = tokenize(&file_contents);
             match tokens {
                 Ok(tokens) => {
                     for token in tokens {
