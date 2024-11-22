@@ -28,10 +28,8 @@ fn main() {
                         println!("{}", token);
                     }
                 }
-                Err(tokens) => {
-                    for token in tokens {
-                        println!("{}", token);
-                    }
+                Err(()) => {
+                    println!("Failed to tokenize input");
                     std::process::exit(65);
                 }
             }

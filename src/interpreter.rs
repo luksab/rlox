@@ -6,6 +6,7 @@ mod resolver;
 use std::fmt::Display;
 
 pub(crate) use lexer::token;
+use lexer::tokenize;
 use parser::ast::{Expr, Stmt};
 
 #[derive(Debug, Clone)]
@@ -47,14 +48,8 @@ impl Display for InterpreterError {
     }
 }
 
-pub fn lex(input: &str) -> Result<Vec<token::Token>, Vec<token::Token>> {
-    let mut lexer = lexer::LexerInstance::new();
-    lexer.tokenize(input);
-    if lexer.had_error {
-        Err(lexer.tokens)
-    } else {
-        Ok(lexer.tokens)
-    }
+pub fn lex(input: &str) -> Result<Vec<token::Token>, ()> {
+    tokenize(input)
 }
 
 pub fn parse(input: &str) -> Result<Vec<Stmt>, InterpreterError> {

@@ -87,6 +87,59 @@ pub enum TokenType {
     EOF,
 }
 
+impl TryFrom<&str> for TokenType {
+    type Error = &'static str;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "and" => Ok(Self::And),
+            "break" => Ok(Self::Break),
+            "continue" => Ok(Self::Continue),
+            "class" => Ok(Self::Class),
+            "else" => Ok(Self::Else),
+            "false" => Ok(Self::False),
+            "fun" => Ok(Self::Fun),
+            "for" => Ok(Self::For),
+            "if" => Ok(Self::If),
+            "nil" => Ok(Self::Nil),
+            "or" => Ok(Self::Or),
+            "print" => Ok(Self::Print),
+            "return" => Ok(Self::Return),
+            "super" => Ok(Self::Super),
+            "this" => Ok(Self::This),
+            "true" => Ok(Self::True),
+            "var" => Ok(Self::Var),
+            "while" => Ok(Self::While),
+            _ => Err("Not parseable as a token type from string"),
+        }
+    }
+}
+
+impl TryFrom<char> for TokenType {
+    type Error = &'static str;
+
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        match value {
+            '(' => Ok(Self::LeftParen),
+            ')' => Ok(Self::RightParen),
+            '{' => Ok(Self::LeftBrace),
+            '}' => Ok(Self::RightBrace),
+            ',' => Ok(Self::Comma),
+            '.' => Ok(Self::Dot),
+            '-' => Ok(Self::Minus),
+            '+' => Ok(Self::Plus),
+            ';' => Ok(Self::Semicolon),
+            '/' => Ok(Self::Slash),
+            '*' => Ok(Self::Star),
+            '!' => Ok(Self::Bang),
+            '=' => Ok(Self::Equal),
+            '<' => Ok(Self::Less),
+            '>' => Ok(Self::Greater),
+            _ => Err("Not parseable as a token type from char"),
+        }
+    }
+}
+
 impl TokenType {
     pub(crate) fn is_binary(&self) -> bool {
         match self {
