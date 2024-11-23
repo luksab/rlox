@@ -1,18 +1,12 @@
-// expression     → literal
-//                | unary
-//                | binary
-//                | grouping ;
-
-// literal        → NUMBER | STRING | "true" | "false" | "nil" ;
-// grouping       → "(" expression ")" ;
-// unary          → ( "-" | "!" ) expression ;
-// binary         → expression operator expression ;
-// operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
-//                | "+"  | "-"  | "*" | "/" ;
-
 use std::{cell::RefCell, fmt::Display, rc::Rc};
 
-use crate::interpreter::{eval::{lox_class::LoxClass, lox_instance::LoxInstance, LoxCallable}, token::TokenType, SouceCodeRange};
+use strum::Display;
+
+use crate::interpreter::{
+    eval::{lox_class::LoxClass, lox_instance::LoxInstance, LoxCallable},
+    token::TokenType,
+    SouceCodeRange,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Stmt {
@@ -147,7 +141,6 @@ impl Display for ExprType {
 
 #[derive(Debug, Clone)]
 pub(crate) enum FunctionType {
-    /// Name, parameters, body
     Function,
     Method,
 }
@@ -204,14 +197,13 @@ impl From<bool> for Literal {
 impl From<&Literal> for bool {
     fn from(l: &Literal) -> Self {
         match l {
-            Literal::True => true,
-            Literal::False => false,
-            Literal::Nil => false,
+            Literal::True
+            | Literal::String(_)
+            | Literal::Callable(_)
+            | Literal::Class(_)
+            | Literal::Instance(_) => true,
+            Literal::False | Literal::Nil => false,
             Literal::Number(num) => *num != 0.0,
-            Literal::String(_) => true,
-            Literal::Callable(_) => true,
-            Literal::Class(_) => true,
-            Literal::Instance(_) => true,
         }
     }
 }
@@ -246,14 +238,7 @@ impl std::fmt::Debug for Literal {
 impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Literal::Number(n) => {
-                // if n.fract() == 0.0 {
-                //     write!(f, "{:.1}", n)
-                // } else {
-                //     write!(f, "{}", n)
-                // }
-                write!(f, "{}", n)
-            }
+            Literal::Number(n) => write!(f, "{}", n),
             Literal::String(s) => write!(f, "{}", s),
             Literal::True => write!(f, "true"),
             Literal::False => write!(f, "false"),
@@ -277,9 +262,11 @@ impl Display for Unary {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
 pub(crate) enum UnaryType {
+    #[strum(serialize = "!")]
     Not,
+    #[strum(serialize = "-")]
     Neg,
 }
 
@@ -289,15 +276,6 @@ impl From<&TokenType> for UnaryType {
             TokenType::Bang => UnaryType::Not,
             TokenType::Minus => UnaryType::Neg,
             _ => panic!("Invalid unary operator"),
-        }
-    }
-}
-
-impl Display for UnaryType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UnaryType::Not => write!(f, "!"),
-            UnaryType::Neg => write!(f, "-"),
         }
     }
 }
@@ -353,19 +331,27 @@ impl Display for LogicalOperator {
     }
 }
 
-// operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
-//                | "+"  | "-"  | "*" | "/" ;
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
 pub(crate) enum Operator {
+    #[strum(serialize = "==")]
     EqualEqual,
+    #[strum(serialize = "!=")]
     NEqualEqual,
+    #[strum(serialize = "<")]
     Less,
+    #[strum(serialize = "<=")]
     Leq,
+    #[strum(serialize = ">")]
     Greater,
+    #[strum(serialize = ">=")]
     Greq,
+    #[strum(serialize = "+")]
     Plus,
+    #[strum(serialize = "-")]
     Minus,
+    #[strum(serialize = "*")]
     Times,
+    #[strum(serialize = "/")]
     Div,
 }
 
@@ -383,23 +369,6 @@ impl From<&TokenType> for Operator {
             TokenType::Star => Operator::Times,
             TokenType::Slash => Operator::Div,
             tok => panic!("Invalid operator {:?}", tok),
-        }
-    }
-}
-
-impl Display for Operator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Operator::EqualEqual => write!(f, "=="),
-            Operator::NEqualEqual => write!(f, "!="),
-            Operator::Less => write!(f, "<"),
-            Operator::Leq => write!(f, "<="),
-            Operator::Greater => write!(f, ">"),
-            Operator::Greq => write!(f, ">="),
-            Operator::Plus => write!(f, "+"),
-            Operator::Minus => write!(f, "-"),
-            Operator::Times => write!(f, "*"),
-            Operator::Div => write!(f, "/"),
         }
     }
 }
