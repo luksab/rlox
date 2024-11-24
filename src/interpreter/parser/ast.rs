@@ -14,9 +14,25 @@ pub(crate) struct Stmt {
     pub range: SouceCodeRange,
 }
 
+impl Stmt {
+    pub(crate) fn into_format(&self) -> super::format::StmtFormatter {
+        super::format::StmtFormatter {
+            stmt: self,
+            print_block: true,
+        }
+    }
+
+    pub(crate) fn into_format_no_block(&self) -> super::format::StmtFormatter {
+        super::format::StmtFormatter {
+            stmt: self,
+            print_block: false,
+        }
+    }
+}
+
 impl Display for Stmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.intern)
+        self.into_format().fmt(f)
     }
 }
 
@@ -33,57 +49,6 @@ pub(crate) enum StmtType {
     Continue,
     Function(FunctionType, String, Vec<String>, Box<Stmt>),
     Class(String, Vec<Stmt>),
-}
-
-impl Display for StmtType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            StmtType::Expr(expr) => write!(f, "{}", expr),
-            StmtType::Print(expr) => write!(f, "(print {})", expr),
-            StmtType::Return(expr) => {
-                write!(f, "(return {})", expr)
-            }
-            StmtType::Var(name, initializer) => match initializer {
-                Some(initializer) => write!(f, "(var {} = {})", name, initializer),
-                None => write!(f, "(var {})", name),
-            },
-            StmtType::IfStmt(condition, then_branch, else_branch) => {
-                let mut result = String::new();
-                result.push_str("(if ");
-                result.push_str(&format!("{} ", condition));
-                result.push_str(&format!("{} ", then_branch));
-                if let Some(else_branch) = else_branch {
-                    result.push_str(&format!("{} ", else_branch));
-                }
-                result.push_str(")");
-                write!(f, "{}", result)
-            }
-            StmtType::Block(stmts) => {
-                let mut result = String::new();
-                result.push_str("{\n");
-                for stmt in stmts {
-                    result.push_str(&format!("{}\n", stmt));
-                }
-                result.push_str("}");
-                write!(f, "{}", result)
-            }
-            StmtType::While(expr, stmt) => {
-                write!(f, "(while {} {})", expr, stmt)
-            }
-            StmtType::Break => write!(f, "break"),
-            StmtType::Continue => write!(f, "continue"),
-            StmtType::Function(function, name, ..) => write!(f, "{} {}", function.tipe(), name),
-            StmtType::Class(name, methods) => {
-                let mut result = String::new();
-                result.push_str(&format!("(class {} ", name));
-                for method in methods {
-                    result.push_str(&format!("{} ", method));
-                }
-                result.push_str(")");
-                write!(f, "{}", result)
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -125,16 +90,16 @@ pub(crate) enum ExprType {
 impl Display for ExprType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ExprType::Literal(literal) => write!(f, "{literal:?}"),
-            ExprType::Grouping(expression) => write!(f, "(group {expression})"),
+            ExprType::Literal(literal) => write!(f, "{literal}"),
+            ExprType::Grouping(expression) => write!(f, "{expression}"),
             ExprType::Unary(unary) => write!(f, "{unary}"),
             ExprType::Binary(binary) => write!(f, "{binary}"),
             ExprType::Variable(name) => write!(f, "{name}"),
-            ExprType::Assign(name, expr) => write!(f, "(assign {name} {expr})"),
+            ExprType::Assign(name, expr) => write!(f, "{name} = {expr}"),
             ExprType::Logical(logical) => write!(f, "{logical}"),
             ExprType::Call(call) => write!(f, "{call}"),
-            ExprType::Get(expr, name) => write!(f, "(get {expr} {name})"),
-            ExprType::Set(expr, name, value) => write!(f, "(set {expr} {name} {value})"),
+            ExprType::Get(expr, name) => write!(f, "{expr}.{name}"),
+            ExprType::Set(expr, name, value) => write!(f, "{expr}.{name} = {value}"),
         }
     }
 }
@@ -163,10 +128,15 @@ pub(crate) struct Call {
 impl Display for Call {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut result = String::new();
-        result.push_str(&format!("(call {} ", self.callee));
-        for arg in &self.arguments {
-            result.push_str(&format!("{} ", arg));
-        }
+        result.push_str(&format!("{}(", self.callee));
+        result.push_str(
+            &self
+                .arguments
+                .iter()
+                .map(|arg| format!("{}", arg))
+                .collect::<Vec<String>>()
+                .join(", "),
+        );
         result.push_str(")");
         write!(f, "{}", result)
     }
@@ -239,7 +209,7 @@ impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Literal::Number(n) => write!(f, "{}", n),
-            Literal::String(s) => write!(f, "{}", s),
+            Literal::String(s) => write!(f, "\"{}\"", s),
             Literal::True => write!(f, "true"),
             Literal::False => write!(f, "false"),
             Literal::Nil => write!(f, "nil"),
@@ -258,7 +228,7 @@ pub(crate) struct Unary {
 
 impl Display for Unary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({} {})", self.intern, self.expr)
+        write!(f, "{}{}", self.intern, self.expr)
     }
 }
 
@@ -289,7 +259,7 @@ pub(crate) struct Binary {
 
 impl Display for Binary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({} {} {})", self.operator, self.left, self.right)
+        write!(f, "{} {} {}", self.left, self.operator, self.right)
     }
 }
 

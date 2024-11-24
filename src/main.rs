@@ -53,6 +53,25 @@ fn main() {
                 }
             }
         }
+        "format" => {
+            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
+                writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
+                String::new()
+            });
+
+            let stmts = interpreter::parse(&file_contents);
+            match stmts {
+                Ok(stmts) => {
+                    for stmt in stmts {
+                        println!("{}", stmt.into_format());
+                    }
+                }
+                Err(err) => {
+                    eprintln!("{}", err);
+                    std::process::exit(65);
+                }
+            }
+        }
         "evaluate" => {
             let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
                 writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();

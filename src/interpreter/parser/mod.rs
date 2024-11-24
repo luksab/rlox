@@ -3,6 +3,7 @@ use std::{backtrace::Backtrace, fmt::Display};
 use super::token::{Token, TokenType};
 
 pub(crate) mod ast;
+pub(crate) mod format;
 use ast::*;
 
 #[derive(Debug)]
