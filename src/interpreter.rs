@@ -9,7 +9,7 @@ pub(crate) use lexer::token;
 use lexer::tokenize;
 use parser::ast::{Expr, Stmt};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct SouceCodeRange {
     pub(crate) line: usize,
     pub(crate) start_column: usize,
@@ -25,6 +25,14 @@ impl SouceCodeRange {
             line,
             start_column,
             length,
+        }
+    }
+
+    pub(crate) fn new(line: usize) -> Self {
+        Self {
+            line,
+            start_column: 0,
+            length: 0,
         }
     }
 }
