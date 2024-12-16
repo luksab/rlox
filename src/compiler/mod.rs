@@ -1,49 +1,47 @@
 use instructions::Instruction;
-use op_codes::OpCode;
-use values::Value;
+pub use op_codes::OpCode;
+pub use values::Value;
 
 use crate::interpreter::SouceCodeRange;
 
-mod disassembler;
+pub(crate) mod disassembler;
 mod instructions;
 mod op_codes;
 mod values;
 
-pub fn compile(input: &str) {
+#[derive(Debug)]
+pub enum CompileError {
+    LexError,
+    ParseError(()),
+    // ResolverError(resolver::ResolverError),
+    ExecError(()),
+}
+
+pub fn compile(input: &str) -> Result<Chunk, CompileError> {
     let mut chunk = Chunk::new();
     // let idx = chunk.addConstant(Value::Number(1.2));
     // chunk.writeChunk(OpCode::OpConstant as u8, SouceCodeRange::new(0));
     // chunk.writeChunk(idx as u8, SouceCodeRange::new(0));
     // chunk.writeChunk(OpCode::OpReturn as u8, SouceCodeRange::new(1));
     // chunk.writeChunk(OpCode::OpReturn as u8, SouceCodeRange::new(1));
-    for i in 0..300 {
-        chunk.addInstruction(
+    for i in 0..10 {
+        chunk.add_instruction(
             Instruction::Constant(Value::Number(i as f64)),
             SouceCodeRange::new(0),
         );
     }
-    chunk.addInstruction(Instruction::Return, SouceCodeRange::new(1));
-    disassembler::disassemble_chunk(&chunk, "test");
+    chunk.add_instruction(Instruction::Return, SouceCodeRange::new(1));
+    Ok(chunk)
 }
 
 pub struct Chunk {
-    code_array: Vec<u8>,
-    constant_pool: Vec<Value>,
-    lines: Vec<SouceCodeRange>,
+    pub(crate) code_array: Vec<u8>,
+    pub(crate) constant_pool: Vec<Value>,
+    pub(crate) lines: Vec<SouceCodeRange>,
 }
 
 impl Chunk {
-    // pub fn addConstant(&mut self, value: Value) -> usize {
-    //     self.constant_pool.push(value);
-    //     self.constant_pool.len() - 1
-    // }
-
-    // pub fn writeChunk(&mut self, byte: u8, range: SouceCodeRange) {
-    //     self.code_array.push(byte);
-    //     self.lines.push(range);
-    // }
-
-    pub fn addInstruction(&mut self, instruction: Instruction, range: SouceCodeRange) {
+    pub fn add_instruction(&mut self, instruction: Instruction, range: SouceCodeRange) {
         match instruction {
             Instruction::Constant(value) => {
                 let idx = self.constant_pool.len();

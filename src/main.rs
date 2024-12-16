@@ -1,18 +1,25 @@
+mod compiler;
 mod interpreter;
 mod vm;
-mod compiler;
 
 use std::env;
 use std::fs;
 use std::io::{self, Write};
 
 use compiler::compile;
+use compiler::disassembler;
 use interpreter::lexer::tokenize;
+use vm::VM;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
-        writeln!(io::stderr(), "Usage: {} tokenize|parse|format|compile|evaluate|run|compile <filename>", args[0]).unwrap();
+        writeln!(
+            io::stderr(),
+            "Usage: {} tokenize|parse|format|compile|evaluate|run|compile <filename>",
+            args[0]
+        )
+        .unwrap();
         return;
     }
 
@@ -115,7 +122,11 @@ fn main() {
                 writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
                 String::new()
             });
-            compile(&input);
+            let chunk = compile(&input).unwrap();
+            disassembler::disassemble_chunk(&chunk, "test");
+            let mut vm = VM::new(chunk);
+            vm.enable_debug();
+            vm.run().unwrap();
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
