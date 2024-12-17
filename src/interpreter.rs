@@ -1,7 +1,7 @@
 mod eval;
 pub mod lexer;
-mod parser;
-mod resolver;
+pub mod parser;
+pub mod resolver;
 
 use std::fmt::Display;
 

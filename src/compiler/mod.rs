@@ -2,78 +2,150 @@ use instructions::Instruction;
 pub use op_codes::OpCode;
 pub use values::Value;
 
-use crate::interpreter::SouceCodeRange;
+use crate::interpreter::{
+    lexer,
+    parser::{self, ast::Expr},
+    resolver, SouceCodeRange,
+};
 
+mod chunk;
 pub(crate) mod disassembler;
 mod instructions;
 mod op_codes;
 mod values;
+pub use chunk::Chunk;
 
 #[derive(Debug)]
-pub enum CompileError {
+pub enum CompilerError {
     LexError,
     ParseError(()),
     // ResolverError(resolver::ResolverError),
+    CompileError(CompileError),
     ExecError(()),
 }
 
-pub fn compile(input: &str) -> Result<Chunk, CompileError> {
+#[derive(Debug)]
+pub enum CompileError {
+    LiteralToValueError,
+}
+
+impl From<CompileError> for CompilerError {
+    fn from(err: CompileError) -> Self {
+        CompilerError::CompileError(err)
+    }
+}
+
+impl From<values::LiteralToValueError> for CompileError {
+    fn from(_: values::LiteralToValueError) -> Self {
+        CompileError::LiteralToValueError
+    }
+}
+
+pub fn compile(input: &str) -> Result<Chunk, CompilerError> {
     let mut chunk = Chunk::new();
     // let idx = chunk.addConstant(Value::Number(1.2));
     // chunk.writeChunk(OpCode::OpConstant as u8, SouceCodeRange::new(0));
     // chunk.writeChunk(idx as u8, SouceCodeRange::new(0));
     // chunk.writeChunk(OpCode::OpReturn as u8, SouceCodeRange::new(1));
     // chunk.writeChunk(OpCode::OpReturn as u8, SouceCodeRange::new(1));
-    for i in 0..10 {
-        chunk.add_instruction(
-            Instruction::Constant(Value::Number(i as f64)),
-            SouceCodeRange::new(0),
-        );
-    }
-    chunk.add_instruction(Instruction::Return, SouceCodeRange::new(1));
+
+    let tokens = lexer::tokenize(input).map_err(|_| CompilerError::LexError)?;
+
+    let mut parser = parser::ParserInstance::new(tokens);
+    // let stmnts = parser.parse().map_err(|_| CompileError::ParseError(()))?;
+    // let mut resolver = resolver::Resolver::new();
+    // resolver
+    //     .resolve(&stmnts)
+    //     .map_err(|_| CompileError::ParseError(()))?;
+    let expr = parser
+        .parse_expr()
+        .map_err(|_| CompilerError::ParseError(()))?;
+    let mut resolver = resolver::Resolver::new();
+    resolver
+        .resolve_expr(&expr)
+        .map_err(|_| CompilerError::ParseError(()))?;
+
+    // chunk.add_instruction(
+    //     Instruction::Constant(Value::Number(1.2)),
+    //     SouceCodeRange::new(0),
+    // );
+    // chunk.add_instruction(Instruction::Negate, SouceCodeRange::new(1));
+    // chunk.add_instruction(
+    //     Instruction::Constant(Value::Number(1.2)),
+    //     SouceCodeRange::new(0),
+    // );
+    // chunk.add_instruction(Instruction::Add, SouceCodeRange::new(2));
+    // chunk.add_instruction(Instruction::Return, SouceCodeRange::new(2));
+
+    expr.compile(&mut chunk)?;
+    chunk.add_instruction(Instruction::Return, SouceCodeRange::new(2));
     Ok(chunk)
 }
 
-pub struct Chunk {
-    pub(crate) code_array: Vec<u8>,
-    pub(crate) constant_pool: Vec<Value>,
-    pub(crate) lines: Vec<SouceCodeRange>,
+trait Compile {
+    fn compile(&self, chunk: &mut Chunk) -> Result<(), CompileError>;
 }
 
-impl Chunk {
-    pub fn add_instruction(&mut self, instruction: Instruction, range: SouceCodeRange) {
-        match instruction {
-            Instruction::Constant(value) => {
-                let idx = self.constant_pool.len();
-                self.constant_pool.push(value);
-
-                if idx > 255 {
-                    self.push_code(OpCode::OpConstantLong as u8, range);
-                    self.push_code((idx >> 16) as u8, range);
-                    self.push_code((idx >> 8) as u8, range);
-                    self.push_code(idx as u8, range);
-                    return;
-                } else {
-                    self.push_code(OpCode::OpConstant as u8, range);
-                    self.push_code(idx as u8, range);
+impl Compile for Expr {
+    fn compile(&self, chunk: &mut Chunk) -> Result<(), CompileError> {
+        use crate::interpreter::parser::ast::ExprType::*;
+        match &*self.intern {
+            Literal(value) => {
+                chunk.add_instruction(
+                    Instruction::Constant(value.clone().try_into()?),
+                    SouceCodeRange::new(0),
+                );
+            }
+            Grouping(expr) => {
+                expr.compile(chunk)?;
+            }
+            Unary(unary) => {
+                unary.compile(chunk)?;
+                match unary.intern {
+                    parser::ast::UnaryType::Not => todo!(),
+                    parser::ast::UnaryType::Neg => {
+                        chunk.add_instruction(Instruction::Negate, self.range);
+                    }
                 }
             }
-            Instruction::Return => {
-                self.push_code(OpCode::OpReturn as u8, range);
+            Binary(binary) => {
+                binary.left.compile(chunk)?;
+                binary.right.compile(chunk)?;
+                match binary.operator {
+                    parser::ast::Operator::EqualEqual => todo!(),
+                    parser::ast::Operator::NEqualEqual => todo!(),
+                    parser::ast::Operator::Less => todo!(),
+                    parser::ast::Operator::Leq => todo!(),
+                    parser::ast::Operator::Greater => todo!(),
+                    parser::ast::Operator::Greq => todo!(),
+                    parser::ast::Operator::Plus => {
+                        chunk.add_instruction(Instruction::Add, self.range);
+                    }
+                    parser::ast::Operator::Minus => {
+                        chunk.add_instruction(Instruction::Subtract, self.range);
+                    }
+                    parser::ast::Operator::Times => {
+                        chunk.add_instruction(Instruction::Multiply, self.range);
+                    }
+                    parser::ast::Operator::Div => {
+                        chunk.add_instruction(Instruction::Divide, self.range);
+                    }
+                }
             }
+            Logical(logical) => todo!(),
+            Variable(_) => todo!(),
+            Assign(_, expr) => todo!(),
+            Call(call) => todo!(),
+            Get(expr, _) => todo!(),
+            Set(expr, _, expr1) => todo!(),
         }
+        Ok(())
     }
+}
 
-    fn new() -> Self {
-        Self {
-            code_array: Vec::new(),
-            constant_pool: Vec::new(),
-            lines: Vec::new(),
-        }
-    }
-
-    fn push_code(&mut self, code: u8, line: SouceCodeRange) {
-        self.code_array.push(code);
-        self.lines.push(line);
+impl Compile for parser::ast::Unary {
+    fn compile(&self, chunk: &mut Chunk) -> Result<(), CompileError> {
+        self.expr.compile(chunk)?;
+        Ok(())
     }
 }

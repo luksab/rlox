@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::interpreter::parser::ast::Literal;
+
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -14,6 +16,23 @@ impl Display for Value {
             Value::Number(n) => write!(f, "{}", n),
             Value::Bool(b) => write!(f, "{}", b),
             Value::Nil => write!(f, "nil"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LiteralToValueError;
+
+impl TryFrom<Literal> for Value {
+    type Error = LiteralToValueError;
+
+    fn try_from(value: Literal) -> Result<Self, Self::Error> {
+        match value {
+            Literal::Number(n) => Ok(Value::Number(n)),
+            Literal::True => Ok(Value::Bool(true)),
+            Literal::False => Ok(Value::Bool(false)),
+            Literal::Nil => Ok(Value::Nil),
+            _ => Err(LiteralToValueError),
         }
     }
 }

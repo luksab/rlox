@@ -4,4 +4,9 @@ use super::values::Value;
 pub(crate) enum Instruction {
     Constant(Value),
     Return,
+    Negate,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
 }

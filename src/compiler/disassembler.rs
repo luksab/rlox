@@ -24,10 +24,15 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
     }
 
     let instruction: Result<OpCode, _> = chunk.code_array[offset].try_into();
+    use OpCode::*;
     match instruction {
-        Ok(OpCode::OpReturn) => simple_instruction("OP_RETURN", offset),
-        Ok(OpCode::OpConstant) => const_instruction(chunk, offset),
-        Ok(OpCode::OpConstantLong) => const_long_instruction(chunk, offset),
+        Ok(OpReturn) => simple_instruction("OP_RETURN", offset),
+        Ok(OpConstant) => const_instruction(chunk, offset),
+        Ok(OpConstantLong) => const_long_instruction(chunk, offset),
+        Ok(OpNegate) => simple_instruction("OP_NEGATE", offset),
+        Ok(OpAdd | OpSubtract | OpMultiply | OpDivide) => {
+            simple_instruction(&instruction.unwrap().to_string(), offset)
+        }
         Err(_) => {
             println!("Unknown opcode {}", chunk.code_array[offset]);
             offset + 1
