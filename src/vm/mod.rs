@@ -87,6 +87,9 @@ impl VM {
                     let constant = self.read_constant_long();
                     self.stack.push(constant);
                 }
+                OpNil => self.stack.push(Value::Nil),
+                OpFalse => self.stack.push(Value::Bool(false)),
+                OpTrue => self.stack.push(Value::Bool(true)),
                 OpNegate => {
                     if let Value::Number(num) = self.stack.pop().ok_or_else(|| {
                         self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)

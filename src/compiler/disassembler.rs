@@ -30,7 +30,7 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
         Ok(OpConstant) => const_instruction(chunk, offset),
         Ok(OpConstantLong) => const_long_instruction(chunk, offset),
         Ok(OpNegate) => simple_instruction("OP_NEGATE", offset),
-        Ok(OpAdd | OpSubtract | OpMultiply | OpDivide) => {
+        Ok(OpAdd | OpSubtract | OpMultiply | OpDivide | OpNil | OpFalse | OpTrue) => {
             simple_instruction(&instruction.unwrap().to_string(), offset)
         }
         Err(_) => {
