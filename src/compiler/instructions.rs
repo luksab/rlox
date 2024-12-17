@@ -5,7 +5,11 @@ use super::values::Value;
 pub(crate) enum Instruction {
     Constant(Value),
     Return,
+    Not,
     Negate,
+    Equal,
+    Greater,
+    Less,
     Add,
     Subtract,
     Multiply,

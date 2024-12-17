@@ -102,7 +102,9 @@ impl Compile for Expr {
             Unary(unary) => {
                 unary.compile(chunk)?;
                 match unary.intern {
-                    parser::ast::UnaryType::Not => todo!(),
+                    parser::ast::UnaryType::Not => {
+                        chunk.add_instruction(Instruction::Not, self.range);
+                    }
                     parser::ast::UnaryType::Neg => {
                         chunk.add_instruction(Instruction::Negate, self.range);
                     }
@@ -112,12 +114,27 @@ impl Compile for Expr {
                 binary.left.compile(chunk)?;
                 binary.right.compile(chunk)?;
                 match binary.operator {
-                    parser::ast::Operator::EqualEqual => todo!(),
-                    parser::ast::Operator::NEqualEqual => todo!(),
-                    parser::ast::Operator::Less => todo!(),
-                    parser::ast::Operator::Leq => todo!(),
-                    parser::ast::Operator::Greater => todo!(),
-                    parser::ast::Operator::Greq => todo!(),
+                    parser::ast::Operator::EqualEqual => {
+                        chunk.add_instruction(Instruction::Equal, self.range);
+                    }
+                    parser::ast::Operator::NEqualEqual => {
+                        chunk.add_instruction(Instruction::Equal, self.range);
+                        chunk.add_instruction(Instruction::Not, self.range);
+                    }
+                    parser::ast::Operator::Less => {
+                        chunk.add_instruction(Instruction::Less, self.range);
+                    }
+                    parser::ast::Operator::Leq => {
+                        chunk.add_instruction(Instruction::Greater, self.range);
+                        chunk.add_instruction(Instruction::Not, self.range);
+                    }
+                    parser::ast::Operator::Greater => {
+                        chunk.add_instruction(Instruction::Greater, self.range);
+                    }
+                    parser::ast::Operator::Greq => {
+                        chunk.add_instruction(Instruction::Less, self.range);
+                        chunk.add_instruction(Instruction::Not, self.range);
+                    }
                     parser::ast::Operator::Plus => {
                         chunk.add_instruction(Instruction::Add, self.range);
                     }

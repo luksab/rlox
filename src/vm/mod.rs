@@ -102,7 +102,89 @@ impl VM {
                         ));
                     }
                 }
-                OpAdd | OpSubtract | OpMultiply | OpDivide => {
+                OpNot => {
+                    let val = self.stack.pop().ok_or_else(|| {
+                        self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                    })?;
+                    let bool: bool = (&val).into();
+                    self.stack.push(Value::Bool(!bool));
+                }
+                OpEq => {
+                    let (a, b) = (
+                        self.stack.pop().ok_or_else(|| {
+                            self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                        })?,
+                        self.stack.pop().ok_or_else(|| {
+                            self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                        })?,
+                    );
+                    self.stack.push(Value::Bool(a == b));
+                }
+                OpLess | OpGreater => {
+                    if let (Value::Number(b), Value::Number(a)) = (
+                        self.stack.pop().ok_or_else(|| {
+                            self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                        })?,
+                        self.stack.pop().ok_or_else(|| {
+                            self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                        })?,
+                    ) {
+                        let result = match instruction {
+                            OpEq => a == b,
+                            OpLess => a < b,
+                            OpGreater => a > b,
+                            _ => unreachable!(),
+                        };
+                        self.stack.push(Value::Bool(result));
+                    } else {
+                        return Err(self.runtime_error(
+                            current_ip,
+                            InterpretErrorType::InvalidData("Expected number".to_string()),
+                        ));
+                    }
+                }
+                OpAdd => {
+                    match (
+                        self.stack.pop().ok_or_else(|| {
+                            self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                        })?,
+                        self.stack.pop().ok_or_else(|| {
+                            self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                        })?,
+                    ) {
+                        (Value::Number(b), Value::Number(a)) => {
+                            let result = match instruction {
+                                OpAdd => a + b,
+                                OpSubtract => a - b,
+                                OpMultiply => a * b,
+                                OpDivide => a / b,
+                                _ => unreachable!(),
+                            };
+                            self.stack.push(Value::Number(result));
+                        }
+                        (Value::String(b), Value::String(a)) => {
+                            let result = match instruction {
+                                OpAdd => a + &b,
+                                _ => {
+                                    return Err(self.runtime_error(
+                                        current_ip,
+                                        InterpretErrorType::InvalidData(
+                                            "Invalid operation on strings".to_string(),
+                                        ),
+                                    ));
+                                }
+                            };
+                            self.stack.push(Value::String(result));
+                        }
+                        _ => {
+                            return Err(self.runtime_error(
+                                current_ip,
+                                InterpretErrorType::InvalidData("Expected number".to_string()),
+                            ));
+                        }
+                    }
+                }
+                OpSubtract | OpMultiply | OpDivide => {
                     if let (Value::Number(b), Value::Number(a)) = (
                         self.stack.pop().ok_or_else(|| {
                             self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
