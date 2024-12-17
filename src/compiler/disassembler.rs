@@ -1,3 +1,5 @@
+use std::ptr::NonNull;
+
 use crate::compiler::op_codes::OpCode;
 
 use super::Chunk;
@@ -30,15 +32,33 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
         Ok(OpConstant) => const_instruction(chunk, offset),
         Ok(OpConstantLong) => const_long_instruction(chunk, offset),
         Ok(OpNegate) => simple_instruction("OP_NEGATE", offset),
+        Ok(OpDefineGlobal | OpGetGlobal) => {
+            global_instruction(chunk, &instruction.unwrap(), offset)
+        }
         Ok(
             OpAdd | OpSubtract | OpMultiply | OpDivide | OpNil | OpFalse | OpTrue | OpNot | OpEq
-            | OpGreater | OpLess,
+            | OpGreater | OpLess | OpPrint | OpPop,
         ) => simple_instruction(&instruction.unwrap().to_string(), offset),
         Err(_) => {
             println!("Unknown opcode {}", chunk.code_array[offset]);
             offset + 1
         }
     }
+}
+
+fn global_instruction(chunk: &Chunk, unwrap: &OpCode, offset: usize) -> usize {
+    // the next pointer-sized bytes interpreted as a usize
+    let mut pointer_address = 0;
+    for i in 0..std::mem::size_of::<usize>() {
+        pointer_address |= (chunk.code_array[offset + 1 + i] as usize) << (i * 8);
+    }
+    let ustring = unsafe {
+        std::mem::transmute::<NonNull<u8>, ustr::Ustr>(NonNull::new_unchecked(
+            pointer_address as *mut u8,
+        ))
+    };
+    println!("{} {} '{}'", unwrap, pointer_address, ustring);
+    offset + 1 + std::mem::size_of::<usize>()
 }
 
 fn const_instruction(chunk: &Chunk, offset: usize) -> usize {

@@ -4,7 +4,10 @@ pub use values::Value;
 
 use crate::interpreter::{
     lexer,
-    parser::{self, ast::Expr},
+    parser::{
+        self,
+        ast::{Expr, Stmt},
+    },
     resolver, SourceCodeRange,
 };
 
@@ -52,18 +55,18 @@ pub fn compile(input: &str) -> Result<Chunk, CompilerError> {
     let tokens = lexer::tokenize(input).map_err(|_| CompilerError::LexError)?;
 
     let mut parser = parser::ParserInstance::new(tokens);
-    // let stmnts = parser.parse().map_err(|_| CompileError::ParseError(()))?;
-    // let mut resolver = resolver::Resolver::new();
-    // resolver
-    //     .resolve(&stmnts)
-    //     .map_err(|_| CompileError::ParseError(()))?;
-    let expr = parser
-        .parse_expr()
-        .map_err(|_| CompilerError::ParseError(()))?;
+    let stmnts = parser.parse().map_err(|_| CompilerError::ParseError(()))?;
     let mut resolver = resolver::Resolver::new();
     resolver
-        .resolve_expr(&expr)
+        .resolve(&stmnts)
         .map_err(|_| CompilerError::ParseError(()))?;
+    // let expr = parser
+    //     .parse_expr()
+    //     .map_err(|_| CompilerError::ParseError(()))?;
+    // let mut resolver = resolver::Resolver::new();
+    // resolver
+    //     .resolve_expr(&expr)
+    //     .map_err(|_| CompilerError::ParseError(()))?;
 
     // chunk.add_instruction(
     //     Instruction::Constant(Value::Number(1.2)),
@@ -77,13 +80,41 @@ pub fn compile(input: &str) -> Result<Chunk, CompilerError> {
     // chunk.add_instruction(Instruction::Add, SouceCodeRange::new(2));
     // chunk.add_instruction(Instruction::Return, SouceCodeRange::new(2));
 
-    expr.compile(&mut chunk)?;
+    for stmt in &stmnts {
+        stmt.compile(&mut chunk)?;
+    }
     chunk.add_instruction(Instruction::Return, SourceCodeRange::new(2));
     Ok(chunk)
 }
 
 trait Compile {
     fn compile(&self, chunk: &mut Chunk) -> Result<(), CompileError>;
+}
+
+impl Compile for Stmt {
+    fn compile(&self, chunk: &mut Chunk) -> Result<(), CompileError> {
+        use crate::interpreter::parser::ast::StmtType::*;
+        match &self.intern {
+            Expr(expr) => {
+                expr.compile(chunk)?;
+                chunk.add_instruction(Instruction::Pop, self.range);
+            }
+            Print(expr) => {
+                expr.compile(chunk)?;
+                chunk.add_instruction(Instruction::Print, self.range);
+            }
+            Var(name, expr) => {
+                if let Some(expr) = expr {
+                    expr.compile(chunk)?;
+                } else {
+                    chunk.add_instruction(Instruction::Constant(Value::Nil), self.range);
+                }
+                chunk.add_instruction(Instruction::DefineGlobal(ustr::ustr(name)), self.range);
+            }
+            _ => todo!(),
+        }
+        Ok(())
+    }
 }
 
 impl Compile for Expr {
@@ -150,7 +181,9 @@ impl Compile for Expr {
                 }
             }
             Logical(logical) => todo!(),
-            Variable(_) => todo!(),
+            Variable(var) => {
+                chunk.add_instruction(Instruction::GetGlobal(ustr::ustr(var)), self.range);
+            }
             Assign(_, expr) => todo!(),
             Call(call) => todo!(),
             Get(expr, _) => todo!(),

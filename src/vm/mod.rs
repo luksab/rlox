@@ -1,3 +1,5 @@
+use std::collections::LinkedList;
+
 use crate::{
     compiler::{disassembler::disassemble_instruction, Chunk, OpCode, Value},
     interpreter::SourceCodeRange,
@@ -9,6 +11,7 @@ pub(crate) struct VM {
     /// Instruction Pointer. Points to the next instruction to be executed
     ip: usize,
     debug: bool,
+    object_heap: LinkedList<Value>,
 }
 
 #[derive(Debug)]
@@ -37,7 +40,12 @@ impl VM {
             chunk,
             ip: 0,
             debug: false,
+            object_heap: LinkedList::new(),
         }
+    }
+
+    fn free_objects(&mut self) {
+        self.object_heap.clear();
     }
 
     pub(crate) fn enable_debug(&mut self) {
@@ -90,6 +98,55 @@ impl VM {
                 OpNil => self.stack.push(Value::Nil),
                 OpFalse => self.stack.push(Value::Bool(false)),
                 OpTrue => self.stack.push(Value::Bool(true)),
+                OpPrint => {
+                    if let Some(val) = self.stack.pop() {
+                        println!("{}", val);
+                    } else {
+                        return Err(
+                            self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                        );
+                    }
+                }
+                OpPop => {
+                    self.stack.pop().ok_or_else(|| {
+                        self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                    })?;
+                }
+                OpDefineGlobal => {
+                    let mut pointer_address = 0;
+                    // let pointer_address = u.as_ptr() as usize;
+                    // // push all the bytes of the pointer address
+                    // for i in 0..std::mem::size_of::<usize>() {
+                    //     self.push_code((pointer_address >> (i * 8)) as u8, range);
+                    // }
+                    for i in 0..std::mem::size_of::<usize>() {
+                        pointer_address |= (self.read_byte() as usize) << (i * 8);
+                    }
+                    let value = self.stack.last().ok_or_else(|| {
+                        self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                    })?;
+                    self.chunk.globals.insert(
+                        unsafe { std::mem::transmute::<usize, ustr::Ustr>(pointer_address) },
+                        value.clone(),
+                    );
+                }
+                OpGetGlobal => {
+                    let mut pointer_address = 0;
+                    for i in 0..std::mem::size_of::<usize>() {
+                        pointer_address |= (self.read_byte() as usize) << (i * 8);
+                    }
+                    let ustring = unsafe {
+                        std::mem::transmute::<usize, ustr::Ustr>(pointer_address)
+                    };
+                    if let Some(value) = self.chunk.globals.get(&ustring) {
+                        self.stack.push(value.clone());
+                    } else {
+                        return Err(self.runtime_error(
+                            current_ip,
+                            InterpretErrorType::InvalidData("Global not found".to_string()),
+                        ));
+                    }
+                }
                 OpNegate => {
                     if let Value::Number(num) = self.stack.pop().ok_or_else(|| {
                         self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
@@ -162,9 +219,9 @@ impl VM {
                             };
                             self.stack.push(Value::Number(result));
                         }
-                        (Value::String(b), Value::String(a)) => {
+                        (b, Value::String(a)) => {
                             let result = match instruction {
-                                OpAdd => a + &b,
+                                OpAdd => a + &b.to_string(),
                                 _ => {
                                     return Err(self.runtime_error(
                                         current_ip,

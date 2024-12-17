@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::compiler::OpCode;
 
 use super::{Instruction, SourceCodeRange, Value};
@@ -5,6 +7,7 @@ use super::{Instruction, SourceCodeRange, Value};
 pub struct Chunk {
     pub(crate) code_array: Vec<u8>,
     pub(crate) constant_pool: Vec<Value>,
+    pub(crate) globals: HashMap<ustr::Ustr, Value>,
     pub(crate) lines: Vec<SourceCodeRange>,
 }
 
@@ -30,9 +33,26 @@ impl Chunk {
                         self.push_code(idx as u8, range);
                     }
                 }
-                _ => {
+                DefineGlobal(u) => {
+                    self.push_code(OpCode::OpDefineGlobal as u8, range);
+                    let pointer_address = u.as_ptr() as usize;
+                    // push all the bytes of the pointer address
+                    for i in 0..std::mem::size_of::<usize>() {
+                        self.push_code((pointer_address >> (i * 8)) as u8, range);
+                    }
+                }
+                GetGlobal(u) => {
+                    self.push_code(OpCode::OpGetGlobal as u8, range);
+                    let pointer_address = u.as_ptr() as usize;
+                    // push all the bytes of the pointer address
+                    for i in 0..std::mem::size_of::<usize>() {
+                        self.push_code((pointer_address >> (i * 8)) as u8, range);
+                    }
+                }
+                instr => {
                     unreachable!(
-                        "All instructions should either be try_from or handled in the match"
+                        "All instructions should either be try_from or handled in the match block. Got {:?}",
+                        instr
                     )
                 }
             }
@@ -43,6 +63,7 @@ impl Chunk {
         Self {
             code_array: Vec::new(),
             constant_pool: Vec::new(),
+            globals: HashMap::new(),
             lines: Vec::new(),
         }
     }

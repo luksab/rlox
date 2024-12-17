@@ -1,3 +1,5 @@
+use ustr::Ustr;
+
 use super::values::Value;
 
 /// high level instructions (eg. no constantLong)
@@ -5,6 +7,10 @@ use super::values::Value;
 pub(crate) enum Instruction {
     Constant(Value),
     Return,
+    Print,
+    Pop,
+    DefineGlobal(Ustr),
+    GetGlobal(Ustr),
     Not,
     Negate,
     Equal,
