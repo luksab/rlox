@@ -10,13 +10,13 @@ use lexer::tokenize;
 use parser::ast::{Expr, Stmt};
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct SouceCodeRange {
+pub(crate) struct SourceCodeRange {
     pub(crate) line: usize,
     pub(crate) start_column: usize,
     pub(crate) length: usize,
 }
 
-impl SouceCodeRange {
+impl SourceCodeRange {
     pub(crate) fn merge(&self, other: &Self) -> Self {
         let line = self.line.min(other.line);
         let start_column = self.start_column.min(other.start_column);

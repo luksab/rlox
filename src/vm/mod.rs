@@ -1,4 +1,7 @@
-use crate::compiler::{disassembler::disassemble_instruction, Chunk, OpCode, Value};
+use crate::{
+    compiler::{disassembler::disassemble_instruction, Chunk, OpCode, Value},
+    interpreter::SourceCodeRange,
+};
 
 pub(crate) struct VM {
     stack: Vec<Value>,
@@ -9,10 +12,22 @@ pub(crate) struct VM {
 }
 
 #[derive(Debug)]
-pub(crate) enum InterpretError {
-    StackOverflow,
+pub struct InterpreterError {
+    pub(crate) error_type: InterpretErrorType,
+    pub(crate) range: SourceCodeRange,
+}
+
+#[derive(Debug)]
+pub(crate) enum InterpretErrorType {
     StackUnderflow,
     InvalidInstruction,
+    InvalidData(String),
+}
+
+impl InterpreterError {
+    pub(crate) fn new(error_type: InterpretErrorType, range: SourceCodeRange) -> Self {
+        Self { error_type, range }
+    }
 }
 
 impl VM {
@@ -47,16 +62,20 @@ impl VM {
         self.chunk.constant_pool[idx].clone()
     }
 
-    pub fn run(&mut self) -> Result<(), InterpretError> {
+    fn runtime_error(&self, current_ip: usize, error: InterpretErrorType) -> InterpreterError {
+        InterpreterError::new(error, self.chunk.lines[current_ip])
+    }
+
+    pub fn run(&mut self) -> Result<(), InterpreterError> {
         loop {
             if self.debug {
                 println!("Stack: {:?}", self.stack);
                 disassemble_instruction(&self.chunk, self.ip);
             }
-            let instruction: OpCode = self
-                .read_byte()
-                .try_into()
-                .map_err(|_| InterpretError::InvalidInstruction)?;
+            let current_ip = self.ip;
+            let instruction: OpCode = self.read_byte().try_into().map_err(|_| {
+                self.runtime_error(current_ip, InterpretErrorType::InvalidInstruction)
+            })?;
             use OpCode::*;
             match instruction {
                 OpReturn => return Ok(()),
@@ -69,18 +88,25 @@ impl VM {
                     self.stack.push(constant);
                 }
                 OpNegate => {
-                    if let Value::Number(num) =
-                        self.stack.pop().ok_or(InterpretError::StackUnderflow)?
-                    {
+                    if let Value::Number(num) = self.stack.pop().ok_or_else(|| {
+                        self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                    })? {
                         self.stack.push(Value::Number(-num));
                     } else {
-                        return Err(InterpretError::InvalidInstruction);
+                        return Err(self.runtime_error(
+                            current_ip,
+                            InterpretErrorType::InvalidData("Expected number".to_string()),
+                        ));
                     }
                 }
                 OpAdd | OpSubtract | OpMultiply | OpDivide => {
                     if let (Value::Number(b), Value::Number(a)) = (
-                        self.stack.pop().ok_or(InterpretError::StackUnderflow)?,
-                        self.stack.pop().ok_or(InterpretError::StackUnderflow)?,
+                        self.stack.pop().ok_or_else(|| {
+                            self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                        })?,
+                        self.stack.pop().ok_or_else(|| {
+                            self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                        })?,
                     ) {
                         let result = match instruction {
                             OpAdd => a + b,
@@ -91,7 +117,10 @@ impl VM {
                         };
                         self.stack.push(Value::Number(result));
                     } else {
-                        return Err(InterpretError::InvalidInstruction);
+                        return Err(self.runtime_error(
+                            current_ip,
+                            InterpretErrorType::InvalidData("Expected number".to_string()),
+                        ));
                     }
                 }
             }

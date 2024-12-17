@@ -1,16 +1,15 @@
 use crate::compiler::OpCode;
 
-use super::{Instruction, SouceCodeRange, Value};
-
+use super::{Instruction, SourceCodeRange, Value};
 
 pub struct Chunk {
     pub(crate) code_array: Vec<u8>,
     pub(crate) constant_pool: Vec<Value>,
-    pub(crate) lines: Vec<SouceCodeRange>,
+    pub(crate) lines: Vec<SourceCodeRange>,
 }
 
 impl Chunk {
-    pub fn add_instruction(&mut self, instruction: Instruction, range: SouceCodeRange) {
+    pub fn add_instruction(&mut self, instruction: Instruction, range: SourceCodeRange) {
         use Instruction::*;
         match instruction {
             Instruction::Constant(value) => {
@@ -45,7 +44,7 @@ impl Chunk {
         }
     }
 
-    pub fn push_code(&mut self, code: u8, line: SouceCodeRange) {
+    pub fn push_code(&mut self, code: u8, line: SourceCodeRange) {
         self.code_array.push(code);
         self.lines.push(line);
     }

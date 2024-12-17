@@ -5,7 +5,7 @@ pub use values::Value;
 use crate::interpreter::{
     lexer,
     parser::{self, ast::Expr},
-    resolver, SouceCodeRange,
+    resolver, SourceCodeRange,
 };
 
 mod chunk;
@@ -78,7 +78,7 @@ pub fn compile(input: &str) -> Result<Chunk, CompilerError> {
     // chunk.add_instruction(Instruction::Return, SouceCodeRange::new(2));
 
     expr.compile(&mut chunk)?;
-    chunk.add_instruction(Instruction::Return, SouceCodeRange::new(2));
+    chunk.add_instruction(Instruction::Return, SourceCodeRange::new(2));
     Ok(chunk)
 }
 
@@ -93,7 +93,7 @@ impl Compile for Expr {
             Literal(value) => {
                 chunk.add_instruction(
                     Instruction::Constant(value.clone().try_into()?),
-                    SouceCodeRange::new(0),
+                    SourceCodeRange::new(0),
                 );
             }
             Grouping(expr) => {

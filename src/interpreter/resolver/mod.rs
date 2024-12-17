@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{parser::ast::*, Expr, SouceCodeRange, Stmt};
+use super::{parser::ast::*, Expr, SourceCodeRange, Stmt};
 
 #[derive(Debug, Clone, Copy)]
 enum FunctionType {
@@ -11,10 +11,10 @@ enum FunctionType {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) enum ResolverError {
-    DoubleDeclare(String, SouceCodeRange),
-    ReturnOutsideFunction(SouceCodeRange),
-    BreakOutsideLoop(SouceCodeRange),
-    ContinueOutsideLoop(SouceCodeRange),
+    DoubleDeclare(String, SourceCodeRange),
+    ReturnOutsideFunction(SourceCodeRange),
+    BreakOutsideLoop(SourceCodeRange),
+    ContinueOutsideLoop(SourceCodeRange),
 }
 
 pub(crate) type ResolverResult<T> = Result<T, ResolverError>;
@@ -200,7 +200,7 @@ impl Resolver {
         self.scopes.pop();
     }
 
-    fn declare(&mut self, name: &str, range: &SouceCodeRange) -> ResolverResult<()> {
+    fn declare(&mut self, name: &str, range: &SourceCodeRange) -> ResolverResult<()> {
         if let Some(scope) = self.scopes.last_mut() {
             if scope.contains_key(name) {
                 return Err(ResolverError::DoubleDeclare(

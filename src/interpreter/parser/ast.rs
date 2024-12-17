@@ -5,13 +5,13 @@ use strum::Display;
 use crate::interpreter::{
     eval::{lox_class::LoxClass, lox_instance::LoxInstance, LoxCallable},
     token::TokenType,
-    SouceCodeRange,
+    SourceCodeRange,
 };
 
 #[derive(Debug, Clone)]
 pub(crate) struct Stmt {
     pub intern: StmtType,
-    pub range: SouceCodeRange,
+    pub range: SourceCodeRange,
 }
 
 impl Stmt {
@@ -63,7 +63,7 @@ impl Display for ExprId {
 #[derive(Debug, Clone)]
 pub(crate) struct Expr {
     pub intern: Box<ExprType>,
-    pub range: SouceCodeRange,
+    pub range: SourceCodeRange,
     pub id: ExprId,
 }
 

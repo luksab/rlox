@@ -8,18 +8,18 @@ use lox_function::LoxFunction;
 use lox_instance::LoxInstance;
 use std::{backtrace::Backtrace, cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
-use super::{parser::ast::*, Expr, SouceCodeRange};
+use super::{parser::ast::*, Expr, SourceCodeRange};
 
 #[derive(Debug)]
 pub struct ExecError {
     pub(crate) message: String,
-    pub(crate) range: SouceCodeRange,
+    pub(crate) range: SourceCodeRange,
     #[allow(dead_code)]
     pub(crate) backtrace: Backtrace,
 }
 
 impl ExecError {
-    pub(crate) fn new(message: String, range: SouceCodeRange) -> Self {
+    pub(crate) fn new(message: String, range: SourceCodeRange) -> Self {
         Self {
             message,
             range,
@@ -110,7 +110,7 @@ impl EvalCtx {
             }
             return Err(ExecError {
                 message: format!("Can't assign to undefined local variable '{}'", name),
-                range: SouceCodeRange {
+                range: SourceCodeRange {
                     line: 0,
                     start_column: 0,
                     length: 0,
@@ -124,7 +124,7 @@ impl EvalCtx {
             }
             return Err(ExecError {
                 message: format!("Can't assign to undefined global variable '{}'", name),
-                range: SouceCodeRange {
+                range: SourceCodeRange {
                     line: 0,
                     start_column: 0,
                     length: 0,

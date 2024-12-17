@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use strum::{Display, EnumString};
 
-use crate::interpreter::SouceCodeRange;
+use crate::interpreter::SourceCodeRange;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -12,7 +12,7 @@ pub(crate) struct Token {
     // pub(crate) line: usize,
     // pub(crate) start_column: usize,
     // pub(crate) length: usize,
-    pub(crate) range: SouceCodeRange,
+    pub(crate) range: SourceCodeRange,
 }
 
 impl Token {
@@ -26,7 +26,7 @@ impl Token {
         Self {
             inner,
             lexeme,
-            range: SouceCodeRange {
+            range: SourceCodeRange {
                 line,
                 start_column,
                 length,

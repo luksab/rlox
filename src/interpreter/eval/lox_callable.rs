@@ -93,7 +93,7 @@ impl LoxCallable for SysCall {
                                 Literal::Number(num) => Ok(*num as i32),
                                 _ => Err(ExecError {
                                     message: format!("Expected number as argument to exit syscall"),
-                                    range: super::SouceCodeRange {
+                                    range: super::SourceCodeRange {
                                         line: 0,
                                         start_column: 0,
                                         length: 0,
@@ -106,7 +106,7 @@ impl LoxCallable for SysCall {
                     }
                     _ => Err(ExecError {
                         message: format!("Unknown syscall: {}", syscall),
-                        range: super::SouceCodeRange {
+                        range: super::SourceCodeRange {
                             line: 0,
                             start_column: 0,
                             length: 0,
@@ -117,7 +117,7 @@ impl LoxCallable for SysCall {
             }
             _ => Err(ExecError {
                 message: format!("Expected string as first argument to syscall"),
-                range: super::SouceCodeRange {
+                range: super::SourceCodeRange {
                     line: 0,
                     start_column: 0,
                     length: 0,

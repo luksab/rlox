@@ -72,7 +72,7 @@ impl LoxInstance {
             .get(name)
             .ok_or(super::ExecError::new(
                 format!("Undefined property '{}'.", name),
-                super::SouceCodeRange {
+                super::SourceCodeRange {
                     line: 0,
                     start_column: 0,
                     length: 0,
