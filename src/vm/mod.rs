@@ -284,6 +284,19 @@ impl VM {
                         ));
                     }
                 }
+                OpJumpIfFalse => {
+                    let jump = self.read_u16();
+                    let condition = self.stack.last().ok_or_else(|| {
+                        self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                    })?;
+                    if !bool::from(condition) {
+                        self.ip += jump as usize;
+                    }
+                }
+                OpJump => {
+                    let jump = self.read_u16();
+                    self.ip += jump as usize;
+                }
             }
         }
     }
@@ -294,5 +307,10 @@ impl VM {
             pointer_address |= (self.read_byte() as usize) << (i * 8);
         }
         pointer_address
+    }
+
+    fn read_u16(&mut self) -> u16 {
+        let u16 = (self.read_byte() as u16) << 8 | self.read_byte() as u16;
+        u16
     }
 }

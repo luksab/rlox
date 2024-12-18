@@ -143,6 +143,16 @@ impl Compiler {
                     self.chunk.push_code(OpCode::OpSetLocal as u8, range);
                     self.chunk.push_code(idx, range);
                 }
+                Jump(idx) => {
+                    self.chunk.push_code(OpCode::OpJump as u8, range);
+                    self.chunk.push_code((idx >> 8) as u8, range);
+                    self.chunk.push_code(idx as u8, range);
+                }
+                JumpIfFalse(idx) => {
+                    self.chunk.push_code(OpCode::OpJumpIfFalse as u8, range);
+                    self.chunk.push_code((idx >> 8) as u8, range);
+                    self.chunk.push_code(idx as u8, range);
+                }
                 instr => {
                     unreachable!(
                         "All instructions should either be try_from or handled in the match block. Got {:?}",
@@ -184,6 +194,24 @@ impl Compiler {
             }
         }
         Err(CompileError::VariableNotDefined)
+    }
+
+    fn emit_jump(&mut self, instruction: Instruction) -> usize {
+        assert!(matches!(
+            instruction,
+            Instruction::Jump(_) | Instruction::JumpIfFalse(_)
+        ));
+        self.add_instruction(instruction, self.current_range);
+        self.chunk.code_array.len() - 2
+    }
+
+    fn patch_jump(&mut self, offset: usize) {
+        let jump = self.chunk.code_array.len() - offset - 2;
+        if offset > 0xffff {
+            panic!("Too much code to jump over");
+        }
+        self.chunk.code_array[offset] = (jump >> 8) as u8;
+        self.chunk.code_array[offset + 1] = jump as u8;
     }
 }
 
@@ -231,6 +259,20 @@ impl Compile for Stmt {
                     stmt.compile(compiler)?;
                 }
                 compiler.end_scope();
+            }
+            IfStmt(cond, then_branch, else_branch) => {
+                cond.compile(compiler)?;
+                let jump = compiler.emit_jump(Instruction::JumpIfFalse(0));
+                compiler.add_instruction(Instruction::Pop, self.range);
+                then_branch.compile(compiler)?;
+                let end = compiler.emit_jump(Instruction::Jump(0));
+                compiler.patch_jump(jump);
+                compiler.add_instruction(Instruction::Pop, self.range);
+
+                if let Some(else_branch) = else_branch {
+                    else_branch.compile(compiler)?;
+                }
+                compiler.patch_jump(end);
             }
             _ => todo!(),
         }

@@ -17,6 +17,8 @@ pub enum OpCode {
     OpGetLocal,
     /// Has a pointer on the Host machine after it as the index into the constant pool
     OpSetLocal,
+    OpJumpIfFalse,
+    OpJump,
     OpNil,
     OpFalse,
     OpTrue,
@@ -58,6 +60,8 @@ impl TryFrom<&Instruction> for OpCode {
             Instruction::SetGlobal(_) => Err(()),
             Instruction::GetLocal(_) => Err(()),
             Instruction::SetLocal(_) => Err(()),
+            Instruction::Jump(_) => Err(()),
+            Instruction::JumpIfFalse(_) => Err(()),
         }
     }
 }
@@ -87,6 +91,8 @@ impl Display for OpCode {
             OpCode::OpSubtract => write!(f, "OP_SUBTRACT"),
             OpCode::OpMultiply => write!(f, "OP_MULTIPLY"),
             OpCode::OpDivide => write!(f, "OP_DIVIDE"),
+            OpCode::OpJumpIfFalse => write!(f, "OP_JUMP_IF_FALSE"),
+            OpCode::OpJump => write!(f, "OP_JUMP"),
         }
     }
 }
@@ -117,6 +123,8 @@ impl TryFrom<u8> for OpCode {
         const OP_SUBTRACT: u8 = OpCode::OpSubtract as u8;
         const OP_MULTIPLY: u8 = OpCode::OpMultiply as u8;
         const OP_DIVIDE: u8 = OpCode::OpDivide as u8;
+        const OP_JUMP_IF_FALSE: u8 = OpCode::OpJumpIfFalse as u8;
+        const OP_JUMP: u8 = OpCode::OpJump as u8;
         match value {
             OP_RETURN => Ok(OpCode::OpReturn),
             OP_PRINT => Ok(OpCode::OpPrint),
@@ -140,6 +148,8 @@ impl TryFrom<u8> for OpCode {
             OP_SUBTRACT => Ok(OpCode::OpSubtract),
             OP_MULTIPLY => Ok(OpCode::OpMultiply),
             OP_DIVIDE => Ok(OpCode::OpDivide),
+            OP_JUMP_IF_FALSE => Ok(OpCode::OpJumpIfFalse),
+            OP_JUMP => Ok(OpCode::OpJump),
             _ => Err(()),
         }
     }

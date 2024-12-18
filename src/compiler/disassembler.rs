@@ -40,11 +40,23 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
             OpAdd | OpSubtract | OpMultiply | OpDivide | OpNil | OpFalse | OpTrue | OpNot | OpEq
             | OpGreater | OpLess | OpPrint | OpPop,
         ) => simple_instruction(&instruction.unwrap().to_string(), offset),
+        Ok(OpJump | OpJumpIfFalse) => jump_instruction(chunk, offset, &instruction.unwrap()),
         Err(_) => {
             println!("Unknown opcode {}", chunk.code_array[offset]);
             offset + 1
         }
     }
+}
+
+fn jump_instruction(chunk: &Chunk, offset: usize, instruction: &OpCode) -> usize {
+    let jump = chunk.code_array[offset + 1] as i16;
+    println!(
+        "{} {} -> {}",
+        instruction,
+        offset,
+        offset as isize + 2 + jump as isize
+    );
+    offset + 3
 }
 
 fn local_instruction(chunk: &Chunk, offset: usize, instruction: &OpCode) -> usize {

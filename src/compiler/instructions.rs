@@ -23,4 +23,6 @@ pub(crate) enum Instruction {
     Subtract,
     Multiply,
     Divide,
+    Jump(i32),
+    JumpIfFalse(i32),
 }
