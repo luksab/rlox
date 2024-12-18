@@ -171,10 +171,10 @@ impl VM {
                 }
                 OpSetLocal => {
                     let idx = self.read_byte() as usize;
-                    let value = self.stack.pop().ok_or_else(|| {
+                    let value = self.stack.last().ok_or_else(|| {
                         self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
                     })?;
-                    self.stack[idx] = value;
+                    self.stack[idx] = value.clone();
                 }
                 OpNegate => {
                     if let Value::Number(num) = self.stack.pop().ok_or_else(|| {
