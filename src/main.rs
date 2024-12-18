@@ -6,8 +6,8 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 
-use compiler::compile;
 use compiler::disassembler;
+use compiler::Compiler;
 use interpreter::lexer::tokenize;
 use vm::VM;
 
@@ -122,7 +122,9 @@ fn main() {
                 writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
                 String::new()
             });
-            let chunk = compile(&input).unwrap();
+            let mut compiler = Compiler::new();
+            compiler.compile(&input).unwrap();
+            let chunk = compiler.into_chunk();
             disassembler::disassemble_chunk(&chunk, "test");
             let mut vm = VM::new(chunk);
             vm.enable_debug();

@@ -12,6 +12,8 @@ pub(crate) enum Instruction {
     DefineGlobal(Ustr),
     GetGlobal(Ustr),
     SetGlobal(Ustr),
+    SetLocal(u8),
+    GetLocal(u8),
     Not,
     Negate,
     Equal,

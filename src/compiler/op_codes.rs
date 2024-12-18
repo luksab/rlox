@@ -13,6 +13,10 @@ pub enum OpCode {
     OpGetGlobal,
     /// Has a pointer on the Host machine after it as the index into the constant pool
     OpSetGlobal,
+    /// Has a pointer on the Host machine after it as the index into the constant pool
+    OpGetLocal,
+    /// Has a pointer on the Host machine after it as the index into the constant pool
+    OpSetLocal,
     OpNil,
     OpFalse,
     OpTrue,
@@ -52,6 +56,8 @@ impl TryFrom<&Instruction> for OpCode {
             Instruction::DefineGlobal(_) => Err(()),
             Instruction::GetGlobal(_) => Err(()),
             Instruction::SetGlobal(_) => Err(()),
+            Instruction::GetLocal(_) => Err(()),
+            Instruction::SetLocal(_) => Err(()),
         }
     }
 }
@@ -66,6 +72,8 @@ impl Display for OpCode {
             OpCode::OpDefineGlobal => write!(f, "OP_DEFINE_GLOBAL"),
             OpCode::OpGetGlobal => write!(f, "OP_GET_GLOBAL"),
             OpCode::OpSetGlobal => write!(f, "OP_SET_GLOBAL"),
+            OpCode::OpGetLocal => write!(f, "OP_GET_LOCAL"),
+            OpCode::OpSetLocal => write!(f, "OP_SET_LOCAL"),
             OpCode::OpNot => write!(f, "OP_NOT"),
             OpCode::OpNil => write!(f, "OP_NIL"),
             OpCode::OpFalse => write!(f, "OP_FALSE"),
@@ -95,6 +103,8 @@ impl TryFrom<u8> for OpCode {
         const OP_DEFINE_GLOBAL: u8 = OpCode::OpDefineGlobal as u8;
         const OP_GET_GLOBAL: u8 = OpCode::OpGetGlobal as u8;
         const OP_SET_GLOBAL: u8 = OpCode::OpSetGlobal as u8;
+        const OP_GET_LOCAL: u8 = OpCode::OpGetLocal as u8;
+        const OP_SET_LOCAL: u8 = OpCode::OpSetLocal as u8;
         const OP_NOT: u8 = OpCode::OpNot as u8;
         const OP_NIL: u8 = OpCode::OpNil as u8;
         const OP_FALSE: u8 = OpCode::OpFalse as u8;
@@ -116,6 +126,8 @@ impl TryFrom<u8> for OpCode {
             OP_DEFINE_GLOBAL => Ok(OpCode::OpDefineGlobal),
             OP_GET_GLOBAL => Ok(OpCode::OpGetGlobal),
             OP_SET_GLOBAL => Ok(OpCode::OpSetGlobal),
+            OP_GET_LOCAL => Ok(OpCode::OpGetLocal),
+            OP_SET_LOCAL => Ok(OpCode::OpSetLocal),
             OP_NOT => Ok(OpCode::OpNot),
             OP_NIL => Ok(OpCode::OpNil),
             OP_FALSE => Ok(OpCode::OpFalse),

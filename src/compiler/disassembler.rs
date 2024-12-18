@@ -35,6 +35,7 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
         Ok(OpDefineGlobal | OpGetGlobal | OpSetGlobal) => {
             global_instruction(chunk, &instruction.unwrap(), offset)
         }
+        Ok(OpGetLocal | OpSetLocal) => local_instruction(chunk, offset, &instruction.unwrap()),
         Ok(
             OpAdd | OpSubtract | OpMultiply | OpDivide | OpNil | OpFalse | OpTrue | OpNot | OpEq
             | OpGreater | OpLess | OpPrint | OpPop,
@@ -44,6 +45,12 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
             offset + 1
         }
     }
+}
+
+fn local_instruction(chunk: &Chunk, offset: usize, instruction: &OpCode) -> usize {
+    let local_idx = chunk.code_array[offset + 1];
+    println!("{} {}", instruction, local_idx);
+    offset + 2
 }
 
 fn global_instruction(chunk: &Chunk, unwrap: &OpCode, offset: usize) -> usize {

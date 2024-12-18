@@ -130,10 +130,7 @@ impl VM {
                     self.chunk.globals.insert(key, value.clone());
                 }
                 OpGetGlobal => {
-                    let mut pointer_address = 0;
-                    for i in 0..std::mem::size_of::<usize>() {
-                        pointer_address |= (self.read_byte() as usize) << (i * 8);
-                    }
+                    let pointer_address = self.read_pointer();
                     let ustring =
                         unsafe { std::mem::transmute::<usize, ustr::Ustr>(pointer_address) };
                     if let Some(value) = self.chunk.globals.get(&ustring) {
@@ -146,10 +143,7 @@ impl VM {
                     }
                 }
                 OpSetGlobal => {
-                    let mut pointer_address = 0;
-                    for i in 0..std::mem::size_of::<usize>() {
-                        pointer_address |= (self.read_byte() as usize) << (i * 8);
-                    }
+                    let pointer_address = self.read_pointer();
                     let value = self.stack.pop().ok_or_else(|| {
                         self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
                     })?;
@@ -157,6 +151,20 @@ impl VM {
                         unsafe { std::mem::transmute::<usize, ustr::Ustr>(pointer_address) },
                         value,
                     );
+                }
+                OpGetLocal => {
+                    let idx = self.read_byte() as usize;
+                    let value = self.stack.get(idx).ok_or_else(|| {
+                        self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                    })?;
+                    self.stack.push(value.clone());
+                }
+                OpSetLocal => {
+                    let idx = self.read_byte() as usize;
+                    let value = self.stack.pop().ok_or_else(|| {
+                        self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                    })?;
+                    self.stack[idx] = value;
                 }
                 OpNegate => {
                     if let Value::Number(num) = self.stack.pop().ok_or_else(|| {
@@ -278,5 +286,13 @@ impl VM {
                 }
             }
         }
+    }
+
+    fn read_pointer(&mut self) -> usize {
+        let mut pointer_address = 0;
+        for i in 0..std::mem::size_of::<usize>() {
+            pointer_address |= (self.read_byte() as usize) << (i * 8);
+        }
+        pointer_address
     }
 }

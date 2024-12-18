@@ -31,6 +31,8 @@ pub enum CompilerError {
 #[derive(Debug)]
 pub enum CompileError {
     LiteralToValueError,
+    VariableAlreadyDefined,
+    VariableNotDefined,
 }
 
 impl From<CompileError> for CompilerError {
@@ -45,72 +47,190 @@ impl From<values::LiteralToValueError> for CompileError {
     }
 }
 
-pub fn compile(input: &str) -> Result<Chunk, CompilerError> {
-    let mut chunk = Chunk::new();
-    // let idx = chunk.addConstant(Value::Number(1.2));
-    // chunk.writeChunk(OpCode::OpConstant as u8, SouceCodeRange::new(0));
-    // chunk.writeChunk(idx as u8, SouceCodeRange::new(0));
-    // chunk.writeChunk(OpCode::OpReturn as u8, SouceCodeRange::new(1));
-    // chunk.writeChunk(OpCode::OpReturn as u8, SouceCodeRange::new(1));
+struct Local {
+    name: String,
+    depth: i32,
+}
 
-    let tokens = lexer::tokenize(input).map_err(|_| CompilerError::LexError)?;
+pub struct Compiler {
+    locals: Vec<Local>,
+    scope_depth: i32,
+    chunk: Chunk,
+    current_range: SourceCodeRange,
+}
 
-    let mut parser = parser::ParserInstance::new(tokens);
-    let stmnts = parser.parse().map_err(|_| CompilerError::ParseError(()))?;
-    // let mut resolver = resolver::Resolver::new();
-    // resolver
-    //     .resolve(&stmnts)
-    //     .map_err(|_| CompilerError::ResolverError(()))?;
-    // let expr = parser
-    //     .parse_expr()
-    //     .map_err(|_| CompilerError::ParseError(()))?;
-    // let mut resolver = resolver::Resolver::new();
-    // resolver
-    //     .resolve_expr(&expr)
-    //     .map_err(|_| CompilerError::ParseError(()))?;
-
-    // chunk.add_instruction(
-    //     Instruction::Constant(Value::Number(1.2)),
-    //     SouceCodeRange::new(0),
-    // );
-    // chunk.add_instruction(Instruction::Negate, SouceCodeRange::new(1));
-    // chunk.add_instruction(
-    //     Instruction::Constant(Value::Number(1.2)),
-    //     SouceCodeRange::new(0),
-    // );
-    // chunk.add_instruction(Instruction::Add, SouceCodeRange::new(2));
-    // chunk.add_instruction(Instruction::Return, SouceCodeRange::new(2));
-
-    for stmt in &stmnts {
-        stmt.compile(&mut chunk)?;
+impl Compiler {
+    pub fn new() -> Self {
+        Self {
+            locals: Vec::new(),
+            scope_depth: 0,
+            chunk: Chunk::new(),
+            current_range: SourceCodeRange::new(0),
+        }
     }
-    chunk.add_instruction(Instruction::Return, SourceCodeRange::new(2));
-    Ok(chunk)
+
+    pub fn compile(&mut self, input: &str) -> Result<(), CompilerError> {
+        let tokens = lexer::tokenize(input).map_err(|_| CompilerError::LexError)?;
+
+        let mut parser = parser::ParserInstance::new(tokens);
+        let stmnts = parser.parse().map_err(|_| CompilerError::ParseError(()))?;
+
+        for stmt in &stmnts {
+            self.current_range = stmt.range;
+            stmt.compile(self)?;
+        }
+        self.add_instruction(Instruction::Return, SourceCodeRange::new(2));
+        Ok(())
+    }
+
+    pub fn into_chunk(self) -> Chunk {
+        self.chunk
+    }
+
+    pub fn add_instruction(&mut self, instruction: Instruction, range: SourceCodeRange) {
+        if let Ok(op) = OpCode::try_from(&instruction) {
+            self.chunk.push_code(op as u8, range);
+        } else {
+            use Instruction::*;
+            match instruction {
+                Constant(value) => {
+                    let idx = self.chunk.constant_pool.len();
+                    self.chunk.constant_pool.push(value);
+
+                    if idx > 255 {
+                        self.chunk.push_code(OpCode::OpConstantLong as u8, range);
+                        self.chunk.push_code((idx >> 16) as u8, range);
+                        self.chunk.push_code((idx >> 8) as u8, range);
+                        self.chunk.push_code(idx as u8, range);
+                        return;
+                    } else {
+                        self.chunk.push_code(OpCode::OpConstant as u8, range);
+                        self.chunk.push_code(idx as u8, range);
+                    }
+                }
+                DefineGlobal(u) => {
+                    self.chunk.push_code(OpCode::OpDefineGlobal as u8, range);
+                    let pointer_address = u.as_ptr() as usize;
+                    // push all the bytes of the pointer address
+                    for i in 0..std::mem::size_of::<usize>() {
+                        self.chunk
+                            .push_code((pointer_address >> (i * 8)) as u8, range);
+                    }
+                }
+                GetGlobal(u) => {
+                    self.chunk.push_code(OpCode::OpGetGlobal as u8, range);
+                    let pointer_address = u.as_ptr() as usize;
+                    // push all the bytes of the pointer address
+                    for i in 0..std::mem::size_of::<usize>() {
+                        self.chunk
+                            .push_code((pointer_address >> (i * 8)) as u8, range);
+                    }
+                }
+                SetGlobal(u) => {
+                    self.chunk.push_code(OpCode::OpSetGlobal as u8, range);
+                    let pointer_address = u.as_ptr() as usize;
+                    // push all the bytes of the pointer address
+                    for i in 0..std::mem::size_of::<usize>() {
+                        self.chunk
+                            .push_code((pointer_address >> (i * 8)) as u8, range);
+                    }
+                }
+                GetLocal(idx) => {
+                    self.chunk.push_code(OpCode::OpGetLocal as u8, range);
+                    self.chunk.push_code(idx, range);
+                }
+                SetLocal(idx) => {
+                    self.chunk.push_code(OpCode::OpSetLocal as u8, range);
+                    self.chunk.push_code(idx, range);
+                }
+                instr => {
+                    unreachable!(
+                        "All instructions should either be try_from or handled in the match block. Got {:?}",
+                        instr
+                    )
+                }
+            }
+        }
+    }
+
+    fn begin_scope(&mut self) {
+        self.scope_depth += 1;
+    }
+
+    fn end_scope(&mut self) {
+        self.scope_depth -= 1;
+
+        while let Some(local) = self.locals.last() {
+            if local.depth > self.scope_depth {
+                self.locals.pop();
+                self.add_instruction(Instruction::Pop, self.current_range);
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn add_local(&mut self, name: String) {
+        self.locals.push(Local {
+            name,
+            depth: self.scope_depth,
+        });
+    }
+
+    fn resolve_local(&mut self, name: &str) -> Result<usize, CompileError> {
+        for (i, local) in self.locals.iter().enumerate().rev() {
+            if local.name == name {
+                return Ok(i);
+            }
+        }
+        Err(CompileError::VariableNotDefined)
+    }
 }
 
 trait Compile {
-    fn compile(&self, chunk: &mut Chunk) -> Result<(), CompileError>;
+    fn compile(&self, compiler: &mut Compiler) -> Result<(), CompileError>;
 }
 
 impl Compile for Stmt {
-    fn compile(&self, chunk: &mut Chunk) -> Result<(), CompileError> {
+    fn compile(&self, compiler: &mut Compiler) -> Result<(), CompileError> {
         use crate::interpreter::parser::ast::StmtType::*;
         match &self.intern {
             Expr(expr) => {
-                expr.compile(chunk)?;
-                chunk.add_instruction(Instruction::Pop, self.range);
+                expr.compile(compiler)?;
+                compiler.add_instruction(Instruction::Pop, self.range);
             }
             Print(expr) => {
-                expr.compile(chunk)?;
-                chunk.add_instruction(Instruction::Print, self.range);
+                expr.compile(compiler)?;
+                compiler.add_instruction(Instruction::Print, self.range);
             }
             Var(name, expr) => {
                 if let Some(expr) = expr {
-                    expr.compile(chunk)?;
+                    expr.compile(compiler)?;
                 } else {
-                    chunk.add_instruction(Instruction::Constant(Value::Nil), self.range);
+                    compiler.add_instruction(Instruction::Constant(Value::Nil), self.range);
                 }
-                chunk.add_instruction(Instruction::DefineGlobal(ustr::ustr(name)), self.range);
+                if compiler.scope_depth > 0 {
+                    // check that the variable is not already defined in the current scope
+                    for local in compiler.locals.iter().rev() {
+                        if local.depth != -1 && local.depth < compiler.scope_depth {
+                            break;
+                        }
+                        if local.name == *name {
+                            return Err(CompileError::VariableAlreadyDefined);
+                        }
+                    }
+                    compiler.add_local(name.clone());
+                } else {
+                    compiler
+                        .add_instruction(Instruction::DefineGlobal(ustr::ustr(name)), self.range);
+                }
+            }
+            Block(stmts) => {
+                compiler.begin_scope();
+                for stmt in stmts {
+                    stmt.compile(compiler)?;
+                }
+                compiler.end_scope();
             }
             _ => todo!(),
         }
@@ -119,75 +239,89 @@ impl Compile for Stmt {
 }
 
 impl Compile for Expr {
-    fn compile(&self, chunk: &mut Chunk) -> Result<(), CompileError> {
+    fn compile(&self, compiler: &mut Compiler) -> Result<(), CompileError> {
         use crate::interpreter::parser::ast::ExprType::*;
         match &*self.intern {
             Literal(value) => {
-                chunk.add_instruction(
+                compiler.add_instruction(
                     Instruction::Constant(value.clone().try_into()?),
                     SourceCodeRange::new(0),
                 );
             }
             Grouping(expr) => {
-                expr.compile(chunk)?;
+                expr.compile(compiler)?;
             }
             Unary(unary) => {
-                unary.compile(chunk)?;
+                unary.compile(compiler)?;
                 match unary.intern {
                     parser::ast::UnaryType::Not => {
-                        chunk.add_instruction(Instruction::Not, self.range);
+                        compiler.add_instruction(Instruction::Not, self.range);
                     }
                     parser::ast::UnaryType::Neg => {
-                        chunk.add_instruction(Instruction::Negate, self.range);
+                        compiler.add_instruction(Instruction::Negate, self.range);
                     }
                 }
             }
             Binary(binary) => {
-                binary.left.compile(chunk)?;
-                binary.right.compile(chunk)?;
+                binary.left.compile(compiler)?;
+                binary.right.compile(compiler)?;
                 match binary.operator {
                     parser::ast::Operator::EqualEqual => {
-                        chunk.add_instruction(Instruction::Equal, self.range);
+                        compiler.add_instruction(Instruction::Equal, self.range);
                     }
                     parser::ast::Operator::NEqualEqual => {
-                        chunk.add_instruction(Instruction::Equal, self.range);
-                        chunk.add_instruction(Instruction::Not, self.range);
+                        compiler.add_instruction(Instruction::Equal, self.range);
+                        compiler.add_instruction(Instruction::Not, self.range);
                     }
                     parser::ast::Operator::Less => {
-                        chunk.add_instruction(Instruction::Less, self.range);
+                        compiler.add_instruction(Instruction::Less, self.range);
                     }
                     parser::ast::Operator::Leq => {
-                        chunk.add_instruction(Instruction::Greater, self.range);
-                        chunk.add_instruction(Instruction::Not, self.range);
+                        compiler.add_instruction(Instruction::Greater, self.range);
+                        compiler.add_instruction(Instruction::Not, self.range);
                     }
                     parser::ast::Operator::Greater => {
-                        chunk.add_instruction(Instruction::Greater, self.range);
+                        compiler.add_instruction(Instruction::Greater, self.range);
                     }
                     parser::ast::Operator::Greq => {
-                        chunk.add_instruction(Instruction::Less, self.range);
-                        chunk.add_instruction(Instruction::Not, self.range);
+                        compiler.add_instruction(Instruction::Less, self.range);
+                        compiler.add_instruction(Instruction::Not, self.range);
                     }
                     parser::ast::Operator::Plus => {
-                        chunk.add_instruction(Instruction::Add, self.range);
+                        compiler.add_instruction(Instruction::Add, self.range);
                     }
                     parser::ast::Operator::Minus => {
-                        chunk.add_instruction(Instruction::Subtract, self.range);
+                        compiler.add_instruction(Instruction::Subtract, self.range);
                     }
                     parser::ast::Operator::Times => {
-                        chunk.add_instruction(Instruction::Multiply, self.range);
+                        compiler.add_instruction(Instruction::Multiply, self.range);
                     }
                     parser::ast::Operator::Div => {
-                        chunk.add_instruction(Instruction::Divide, self.range);
+                        compiler.add_instruction(Instruction::Divide, self.range);
                     }
                 }
             }
             Logical(logical) => todo!(),
-            Variable(var) => {
-                chunk.add_instruction(Instruction::GetGlobal(ustr::ustr(var)), self.range);
+            Variable(name) => {
+                if let Ok(idx) = compiler.resolve_local(name) {
+                    compiler.add_instruction(
+                        Instruction::GetLocal(idx.try_into().unwrap()),
+                        self.range,
+                    );
+                } else {
+                    compiler.add_instruction(Instruction::GetGlobal(ustr::ustr(name)), self.range);
+                }
             }
             Assign(name, expr) => {
-                expr.compile(chunk)?;
-                chunk.add_instruction(Instruction::SetGlobal(ustr::ustr(name)), self.range);
+                expr.compile(compiler)?;
+                if let Ok(idx) = compiler.resolve_local(name) {
+                    compiler.add_instruction(
+                        Instruction::SetLocal(idx.try_into().unwrap()),
+                        self.range,
+                    );
+                } else {
+                    compiler.add_instruction(Instruction::SetGlobal(ustr::ustr(name)), self.range);
+                }
             }
             Call(call) => todo!(),
             Get(expr, _) => todo!(),
@@ -198,8 +332,8 @@ impl Compile for Expr {
 }
 
 impl Compile for parser::ast::Unary {
-    fn compile(&self, chunk: &mut Chunk) -> Result<(), CompileError> {
-        self.expr.compile(chunk)?;
+    fn compile(&self, compiler: &mut Compiler) -> Result<(), CompileError> {
+        self.expr.compile(compiler)?;
         Ok(())
     }
 }
