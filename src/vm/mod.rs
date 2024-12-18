@@ -114,30 +114,28 @@ impl VM {
                 }
                 OpDefineGlobal => {
                     let mut pointer_address = 0;
-                    // let pointer_address = u.as_ptr() as usize;
-                    // // push all the bytes of the pointer address
-                    // for i in 0..std::mem::size_of::<usize>() {
-                    //     self.push_code((pointer_address >> (i * 8)) as u8, range);
-                    // }
                     for i in 0..std::mem::size_of::<usize>() {
                         pointer_address |= (self.read_byte() as usize) << (i * 8);
                     }
                     let value = self.stack.last().ok_or_else(|| {
                         self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
                     })?;
-                    self.chunk.globals.insert(
-                        unsafe { std::mem::transmute::<usize, ustr::Ustr>(pointer_address) },
-                        value.clone(),
-                    );
+                    let key = unsafe { std::mem::transmute::<usize, ustr::Ustr>(pointer_address) };
+                    if let Some(_) = self.chunk.globals.get(&key) {
+                        return Err(self.runtime_error(
+                            current_ip,
+                            InterpretErrorType::InvalidData("Global already defined".to_string()),
+                        ));
+                    }
+                    self.chunk.globals.insert(key, value.clone());
                 }
                 OpGetGlobal => {
                     let mut pointer_address = 0;
                     for i in 0..std::mem::size_of::<usize>() {
                         pointer_address |= (self.read_byte() as usize) << (i * 8);
                     }
-                    let ustring = unsafe {
-                        std::mem::transmute::<usize, ustr::Ustr>(pointer_address)
-                    };
+                    let ustring =
+                        unsafe { std::mem::transmute::<usize, ustr::Ustr>(pointer_address) };
                     if let Some(value) = self.chunk.globals.get(&ustring) {
                         self.stack.push(value.clone());
                     } else {
@@ -146,6 +144,19 @@ impl VM {
                             InterpretErrorType::InvalidData("Global not found".to_string()),
                         ));
                     }
+                }
+                OpSetGlobal => {
+                    let mut pointer_address = 0;
+                    for i in 0..std::mem::size_of::<usize>() {
+                        pointer_address |= (self.read_byte() as usize) << (i * 8);
+                    }
+                    let value = self.stack.pop().ok_or_else(|| {
+                        self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
+                    })?;
+                    self.chunk.globals.insert(
+                        unsafe { std::mem::transmute::<usize, ustr::Ustr>(pointer_address) },
+                        value,
+                    );
                 }
                 OpNegate => {
                     if let Value::Number(num) = self.stack.pop().ok_or_else(|| {

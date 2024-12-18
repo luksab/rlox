@@ -49,6 +49,14 @@ impl Chunk {
                         self.push_code((pointer_address >> (i * 8)) as u8, range);
                     }
                 }
+                SetGlobal(u) => {
+                    self.push_code(OpCode::OpSetGlobal as u8, range);
+                    let pointer_address = u.as_ptr() as usize;
+                    // push all the bytes of the pointer address
+                    for i in 0..std::mem::size_of::<usize>() {
+                        self.push_code((pointer_address >> (i * 8)) as u8, range);
+                    }
+                }
                 instr => {
                     unreachable!(
                         "All instructions should either be try_from or handled in the match block. Got {:?}",

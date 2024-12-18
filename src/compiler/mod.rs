@@ -25,6 +25,7 @@ pub enum CompilerError {
     // ResolverError(resolver::ResolverError),
     CompileError(CompileError),
     ExecError(()),
+    ResolverError(()),
 }
 
 #[derive(Debug)]
@@ -56,10 +57,10 @@ pub fn compile(input: &str) -> Result<Chunk, CompilerError> {
 
     let mut parser = parser::ParserInstance::new(tokens);
     let stmnts = parser.parse().map_err(|_| CompilerError::ParseError(()))?;
-    let mut resolver = resolver::Resolver::new();
-    resolver
-        .resolve(&stmnts)
-        .map_err(|_| CompilerError::ParseError(()))?;
+    // let mut resolver = resolver::Resolver::new();
+    // resolver
+    //     .resolve(&stmnts)
+    //     .map_err(|_| CompilerError::ResolverError(()))?;
     // let expr = parser
     //     .parse_expr()
     //     .map_err(|_| CompilerError::ParseError(()))?;
@@ -184,7 +185,10 @@ impl Compile for Expr {
             Variable(var) => {
                 chunk.add_instruction(Instruction::GetGlobal(ustr::ustr(var)), self.range);
             }
-            Assign(_, expr) => todo!(),
+            Assign(name, expr) => {
+                expr.compile(chunk)?;
+                chunk.add_instruction(Instruction::SetGlobal(ustr::ustr(name)), self.range);
+            }
             Call(call) => todo!(),
             Get(expr, _) => todo!(),
             Set(expr, _, expr1) => todo!(),

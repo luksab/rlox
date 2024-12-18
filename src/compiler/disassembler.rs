@@ -32,7 +32,7 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
         Ok(OpConstant) => const_instruction(chunk, offset),
         Ok(OpConstantLong) => const_long_instruction(chunk, offset),
         Ok(OpNegate) => simple_instruction("OP_NEGATE", offset),
-        Ok(OpDefineGlobal | OpGetGlobal) => {
+        Ok(OpDefineGlobal | OpGetGlobal | OpSetGlobal) => {
             global_instruction(chunk, &instruction.unwrap(), offset)
         }
         Ok(
