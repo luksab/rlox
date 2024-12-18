@@ -76,7 +76,7 @@ impl Resolver {
                 self.define(name);
                 self.resolve_function(args, body)?;
             }
-            StmtType::Class(ref name, ref methods) => {
+            StmtType::Class(ref name, ref _methods) => {
                 self.declare(name, &stmt.range)?;
                 self.define(name);
             }

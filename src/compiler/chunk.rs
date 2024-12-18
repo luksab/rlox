@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use crate::compiler::OpCode;
-
-use super::{Instruction, SourceCodeRange, Value};
+use super::{SourceCodeRange, Value};
 
 pub struct Chunk {
     pub(crate) code_array: Vec<u8>,

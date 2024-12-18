@@ -19,6 +19,7 @@ pub enum OpCode {
     OpSetLocal,
     OpJumpIfFalse,
     OpJump,
+    OpLoop,
     OpNil,
     OpFalse,
     OpTrue,
@@ -62,6 +63,7 @@ impl TryFrom<&Instruction> for OpCode {
             Instruction::SetLocal(_) => Err(()),
             Instruction::Jump(_) => Err(()),
             Instruction::JumpIfFalse(_) => Err(()),
+            Instruction::Loop(_) => Err(()),
         }
     }
 }
@@ -93,6 +95,7 @@ impl Display for OpCode {
             OpCode::OpDivide => write!(f, "OP_DIVIDE"),
             OpCode::OpJumpIfFalse => write!(f, "OP_JUMP_IF_FALSE"),
             OpCode::OpJump => write!(f, "OP_JUMP"),
+            OpCode::OpLoop => write!(f, "OP_LOOP"),
         }
     }
 }
@@ -125,6 +128,7 @@ impl TryFrom<u8> for OpCode {
         const OP_DIVIDE: u8 = OpCode::OpDivide as u8;
         const OP_JUMP_IF_FALSE: u8 = OpCode::OpJumpIfFalse as u8;
         const OP_JUMP: u8 = OpCode::OpJump as u8;
+        const OP_LOOP: u8 = OpCode::OpLoop as u8;
         match value {
             OP_RETURN => Ok(OpCode::OpReturn),
             OP_PRINT => Ok(OpCode::OpPrint),
@@ -150,6 +154,7 @@ impl TryFrom<u8> for OpCode {
             OP_DIVIDE => Ok(OpCode::OpDivide),
             OP_JUMP_IF_FALSE => Ok(OpCode::OpJumpIfFalse),
             OP_JUMP => Ok(OpCode::OpJump),
+            OP_LOOP => Ok(OpCode::OpLoop),
             _ => Err(()),
         }
     }

@@ -52,7 +52,7 @@ impl LoxCallable for LoxInstance {
 
 impl LoxInstance {
     pub(crate) fn new(class: &LoxClass) -> Self {
-        let mut methods = HashMap::new();
+        let methods = HashMap::new();
         let fields = HashMap::new();
         // for stmt in methods {
         //     if let super::StmtType::Function(_, name, _, body) = stmt.intern {

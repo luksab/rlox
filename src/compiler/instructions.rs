@@ -25,4 +25,5 @@ pub(crate) enum Instruction {
     Divide,
     Jump(i32),
     JumpIfFalse(i32),
+    Loop(usize),
 }

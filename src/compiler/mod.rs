@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use instructions::Instruction;
 pub use op_codes::OpCode;
 pub use values::Value;
@@ -8,7 +10,7 @@ use crate::interpreter::{
         self,
         ast::{Expr, Stmt},
     },
-    resolver, SourceCodeRange,
+    SourceCodeRange,
 };
 
 mod chunk;
@@ -24,8 +26,20 @@ pub enum CompilerError {
     ParseError(()),
     // ResolverError(resolver::ResolverError),
     CompileError(CompileError),
-    ExecError(()),
-    ResolverError(()),
+    // ExecError(()),
+    // ResolverError(()),
+}
+
+impl Display for CompilerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CompilerError::LexError => write!(f, "Lex error"),
+            CompilerError::ParseError(_) => write!(f, "Parse error"),
+            CompilerError::CompileError(err) => write!(f, "Compile error: {:?}", err),
+            // CompilerError::ExecError(_) => write!(f, "Exec error"),
+            // CompilerError::ResolverError(_) => write!(f, "Resolver error"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -153,6 +167,17 @@ impl Compiler {
                     self.chunk.push_code((idx >> 8) as u8, range);
                     self.chunk.push_code(idx as u8, range);
                 }
+                Loop(loop_start) => {
+                    self.chunk.push_code(OpCode::OpLoop as u8, range);
+
+                    let offset = self.chunk.code_array.len() - loop_start + 2;
+                    if offset > 0xffff {
+                        panic!("Loop body too large");
+                    }
+
+                    self.chunk.push_code((offset >> 8) as u8, range);
+                    self.chunk.push_code(offset as u8, range);
+                }
                 instr => {
                     unreachable!(
                         "All instructions should either be try_from or handled in the match block. Got {:?}",
@@ -274,6 +299,18 @@ impl Compile for Stmt {
                 }
                 compiler.patch_jump(end);
             }
+            While(cond, body) => {
+                let loop_start = compiler.chunk.code_array.len();
+                cond.compile(compiler)?;
+
+                let exit_jump = compiler.emit_jump(Instruction::JumpIfFalse(0));
+                compiler.add_instruction(Instruction::Pop, self.range);
+                body.compile(compiler)?;
+                compiler.add_instruction(Instruction::Loop(loop_start), self.range);
+
+                compiler.patch_jump(exit_jump);
+                compiler.add_instruction(Instruction::Pop, self.range);
+            }
             _ => todo!(),
         }
         Ok(())
@@ -383,9 +420,10 @@ impl Compile for Expr {
                     compiler.add_instruction(Instruction::SetGlobal(ustr::ustr(name)), self.range);
                 }
             }
-            Call(call) => todo!(),
-            Get(expr, _) => todo!(),
-            Set(expr, _, expr1) => todo!(),
+            // Call(call) => todo!(),
+            // Get(expr, _) => todo!(),
+            // Set(expr, _, expr1) => todo!(),
+            _ => todo!(),
         }
         Ok(())
     }

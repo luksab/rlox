@@ -1,4 +1,4 @@
-use std::collections::LinkedList;
+use std::fmt::Display;
 
 use crate::{
     compiler::{disassembler::disassemble_instruction, Chunk, OpCode, Value},
@@ -11,7 +11,6 @@ pub(crate) struct VM {
     /// Instruction Pointer. Points to the next instruction to be executed
     ip: usize,
     debug: bool,
-    object_heap: LinkedList<Value>,
 }
 
 #[derive(Debug)]
@@ -20,11 +19,27 @@ pub struct InterpreterError {
     pub(crate) range: SourceCodeRange,
 }
 
+impl Display for InterpreterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?} at line {}", self.error_type, self.range.line)
+    }
+}
+
 #[derive(Debug)]
 pub(crate) enum InterpretErrorType {
     StackUnderflow,
     InvalidInstruction,
     InvalidData(String),
+}
+
+impl Display for InterpretErrorType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InterpretErrorType::StackUnderflow => write!(f, "Stack underflow"),
+            InterpretErrorType::InvalidInstruction => write!(f, "Invalid instruction"),
+            InterpretErrorType::InvalidData(data) => write!(f, "Invalid data: {}", data),
+        }
+    }
 }
 
 impl InterpreterError {
@@ -40,12 +55,7 @@ impl VM {
             chunk,
             ip: 0,
             debug: false,
-            object_heap: LinkedList::new(),
         }
-    }
-
-    fn free_objects(&mut self) {
-        self.object_heap.clear();
     }
 
     pub(crate) fn enable_debug(&mut self) {
@@ -144,12 +154,12 @@ impl VM {
                 }
                 OpSetGlobal => {
                     let pointer_address = self.read_pointer();
-                    let value = self.stack.pop().ok_or_else(|| {
+                    let value = self.stack.last().ok_or_else(|| {
                         self.runtime_error(current_ip, InterpretErrorType::StackUnderflow)
                     })?;
                     self.chunk.globals.insert(
                         unsafe { std::mem::transmute::<usize, ustr::Ustr>(pointer_address) },
-                        value,
+                        value.clone(),
                     );
                 }
                 OpGetLocal => {
@@ -296,6 +306,10 @@ impl VM {
                 OpJump => {
                     let jump = self.read_u16();
                     self.ip += jump as usize;
+                }
+                OpLoop => {
+                    let jump = self.read_u16();
+                    self.ip -= jump as usize;
                 }
             }
         }

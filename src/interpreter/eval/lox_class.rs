@@ -30,8 +30,8 @@ impl std::fmt::Display for LoxClass {
 }
 
 impl LoxClass {
-    pub(crate) fn new(name: String, methods: Vec<super::Stmt>) -> Self {
-        let mut methods = HashMap::new();
+    pub(crate) fn new(name: String, _methods: Vec<super::Stmt>) -> Self {
+        let methods = HashMap::new();
         // for stmt in methods {
         //     if let super::StmtType::Function(_, name, _, body) = stmt.intern {
         //         let function = LoxFunction::new(super::FunctionType::Method, name.clone(), body.clone());
