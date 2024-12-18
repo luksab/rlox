@@ -343,7 +343,25 @@ impl Compile for Expr {
                     }
                 }
             }
-            Logical(logical) => todo!(),
+            Logical(logical) => {
+                logical.left.compile(compiler)?;
+                match logical.operator {
+                    parser::ast::LogicalOperator::And => {
+                        let jump = compiler.emit_jump(Instruction::JumpIfFalse(0));
+                        compiler.add_instruction(Instruction::Pop, self.range);
+                        logical.right.compile(compiler)?;
+                        compiler.patch_jump(jump);
+                    }
+                    parser::ast::LogicalOperator::Or => {
+                        let else_jump = compiler.emit_jump(Instruction::JumpIfFalse(0));
+                        let end_jump = compiler.emit_jump(Instruction::Jump(0));
+                        compiler.patch_jump(else_jump);
+                        compiler.add_instruction(Instruction::Pop, self.range);
+                        logical.right.compile(compiler)?;
+                        compiler.patch_jump(end_jump);
+                    }
+                }
+            }
             Variable(name) => {
                 if let Ok(idx) = compiler.resolve_local(name) {
                     compiler.add_instruction(
